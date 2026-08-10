@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Blue Lock: Ego Manager</title>
+  <!-- Google Fonts: Rajdhani for futuristic gaming aesthetic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="app_icon.png">
+</head>
+<body>
+
+  <div id="app-container">
+    <div class="cyber-bg"></div>
+    <div class="blue-aura-glow"></div>
+
+    <!-- Top Bar -->
+    <header>
+      <div class="brand">
+        <img src="app_icon.png" alt="Blue Lock Logo">
+        <span class="brand-title">BLUE LOCK</span>
+      </div>
+      <div class="user-currency">
+        <div class="currency-item">🪙 <span id="user-coins">1000</span></div>
+        <div class="currency-item">💎 <span id="user-gems">50</span></div>
+      </div>
+    </header>
+
+    <!-- PANTALLA 1: MENÚ PRINCIPAL -->
+    <section id="screen-main" class="screen active">
+      <div class="hero-logo-container">
+        <h1>EGO MANAGER</h1>
+        <div class="subtitle">PROJECT BLUE LOCK</div>
+      </div>
+
+      <div class="menu-buttons">
+        <button class="btn-bluelock" onclick="renderHistoria(); showScreen('screen-modo-historia')">
+          <span><i class="fas fa-book"></i> MODO HISTORIA</span>
+          <span class="btn-tag">ANIME/MANGA</span>
+        </button>
+
+        <button class="btn-bluelock" onclick="showScreen('screen-crear-jugador')">
+          <span><i class="fas fa-bolt"></i> CREAR EGOÍSTA</span>
+          <span class="btn-tag">JUGADOR</span>
+        </button>
+
+        <button class="btn-bluelock" onclick="tsInit(); showScreen('screen-modo-manager')">
+          <span><i class="fas fa-user-tie"></i> MODO CARRERA</span>
+          <span class="btn-tag">MANAGER</span>
+        </button>
+
+        <button class="btn-bluelock" onclick="showScreen('screen-tienda')">
+          <span><i class="fas fa-store"></i> TIENDA DE EGO</span>
+          <span class="btn-tag">SHOP</span>
+        </button>
+
+        <button class="btn-bluelock" onclick="showScreen('screen-logros')">
+          <span><i class="fas fa-trophy"></i> LOGROS Y RECOMPENSAS</span>
+          <span class="btn-tag">REWARDS</span>
+        </button>
+
+        <button class="btn-bluelock" onclick="showScreen('screen-ajustes')">
+          <span><i class="fas fa-cog"></i> AJUSTES</span>
+          <span class="btn-tag">CONFIG</span>
+        </button>
+      </div>
+
+      <div class="bl-card" style="margin-top: auto; text-align: center;">
+        <p style="font-size: 0.75rem; color: var(--text-muted);">
+          "En el fútbol moderno, el único camino para sobrevivir es convertirse en el egoísta número uno."
+        </p>
+        <p style="font-size: 0.7rem; color: var(--blue-lock-cyan); margin-top: 4px; font-weight:700;">
+          — Jinpachi Ego
+        </p>
+      </div>
+    </section>
+
+    <!-- PANTALLA 2: MODO HISTORIA -->
+    <section id="screen-modo-historia" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>MODO HISTORIA</h2>
+          <span id="historia-cap-titulo" style="color:var(--blue-lock-cyan);font-weight:700;">CAPÍTULO 1</span>
+        </div>
+        <div id="historia-content"></div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 3: CREAR EGOÍSTA -->
+    <section id="screen-crear-jugador" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="volverMenuJugador()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+
+      <div id="cj-menu" class="start-menu">
+        <div class="section-header">
+          <h2>CREAR TU EGOÍSTA</h2>
+        </div>
+        <button class="btn-bluelock btn-gold" style="width:100%;justify-content:center;margin-top:10px;" onclick="mostrarFormJugador()">
+          <i class="fas fa-plus"></i> NUEVA PARTIDA
+        </button>
+        <button id="btn-continuar-jugador" class="btn-bluelock" style="display:none;width:100%;justify-content:center;margin-top:8px;" onclick="renderHub(); showScreen('screen-hub')">
+          <i class="fas fa-play"></i> CARGAR PARTIDA
+        </button>
+      </div>
+
+      <div id="cj-form" class="form-container" style="display:none;">
+        <div class="section-header">
+          <h2>CREAR TU EGOÍSTA</h2>
+        </div>
+        <div class="scroll-content">
+          <form id="form-crear-jugador">
+            <div class="form-group">
+              <label for="input-nombre-jugador">Nombre del Jugador</label>
+              <input type="text" id="input-nombre-jugador" class="form-input" placeholder="Ej: Ren Kujo" required maxlength="18">
+            </div>
+            <div class="form-group">
+              <label for="select-posicion">Posición</label>
+              <select id="select-posicion" class="form-select">
+                <option value="DEL">Delantero Centro (DEL)</option>
+                <option value="EI">Extremo Izquierdo (EI)</option>
+                <option value="ED">Extremo Derecho (ED)</option>
+                <option value="MCO">Media Punta (MCO)</option>
+                <option value="MCD">Medio Centro Defensivo (MCD)</option>
+                <option value="DEC">Defensa Central (DEC)</option>
+                <option value="POR">Portero (POR)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="select-pais">Liga / Nacionalidad</label>
+              <select id="select-pais" class="form-select"></select>
+            </div>
+            <div class="bl-card">
+              <h4 style="color:var(--gold-ego); font-size:0.9rem; margin-bottom:6px;">Stats Iniciales</h4>
+              <div style="font-size:0.8rem; color:var(--text-muted); display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+                <span><i class="fas fa-futbol"></i> Tiro: 65</span>
+                <span><i class="fas fa-bullseye"></i> Pase: 65</span>
+                <span><i class="fas fa-bolt"></i> Regate: 65</span>
+                <span><i class="fas fa-eye"></i> Visión: 65</span>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="fixed-bottom">
+          <button type="submit" id="btn-submit-jugador" class="btn-bluelock btn-gold" style="width:100%;justify-content:center;" form="form-crear-jugador">
+            <i class="fas fa-fire"></i> CREAR EGOÍSTA
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 3B: MODO CARRERA (MANAGER) -->
+    <section id="screen-modo-manager" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="volverMenuManager()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+
+      <div id="mm-menu" class="start-menu">
+        <div class="section-header">
+          <h2>MODO CARRERA</h2>
+          <span style="color:var(--blue-lock-cyan); font-weight:700;">MANAGER</span>
+        </div>
+        <button class="btn-bluelock btn-gold" style="width:100%;justify-content:center;margin-top:10px;" onclick="mostrarFormManager()">
+          <i class="fas fa-plus"></i> NUEVA PARTIDA
+        </button>
+        <button id="btn-continuar-manager" class="btn-bluelock" style="width:100%;justify-content:center;margin-top:8px;" onclick="mostrarSlotsManager()">
+          <i class="fas fa-play"></i> CARGAR PARTIDA
+        </button>
+      </div>
+
+      <div id="mm-form" class="form-container" style="display:none;">
+        <div class="section-header">
+          <h2>MODO CARRERA</h2>
+          <span style="color:var(--blue-lock-cyan); font-weight:700;">MANAGER</span>
+        </div>
+        <div class="scroll-content">
+          <form id="form-modo-manager">
+            <div class="form-group">
+              <label for="input-nombre-manager">Nombre del Manager</label>
+              <input type="text" id="input-nombre-manager" class="form-input" placeholder="Ej: Jinpachi Ego" required maxlength="18">
+            </div>
+            <div class="form-group">
+              <label>Equipo Base</label>
+              <div id="team-selector">
+                <div class="div-tabs">
+                  <button class="div-tab active" data-div="primera" onclick="cambiarDivision('primera')">🏆 1ª DIVISIÓN</button>
+                  <button class="div-tab" data-div="segunda" onclick="cambiarDivision('segunda')">🎓 2ª DIVISIÓN</button>
+                </div>
+                <div class="neo-league-sub">LIGA NEO EGOTÍSTA</div>
+                <div class="ts-grid" id="ts-equipos"></div>
+                <div id="ts-selected-name" style="display:none;margin-top:8px;padding:8px 12px;background:var(--bg-card);border:1px solid var(--bg-card-border);border-radius:6px;">
+                  <span style="font-size:0.8rem;color:var(--text-muted);">EQUIPO SELECCIONADO:</span>
+                  <span id="ts-equipo-label" style="display:block;font-size:1rem;font-weight:800;color:var(--blue-lock-cyan);"></span>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="fixed-bottom">
+          <button type="submit" id="btn-submit-manager" class="btn-bluelock btn-gold" style="width:100%;justify-content:center;" form="form-modo-manager" disabled>
+            <i class="fas fa-fire"></i> INICIAR CARRERA
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 3B: HUB PRINCIPAL -->
+    <section id="screen-hub" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="guardarEstado(); showScreen('screen-main')"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="hub-profile">
+          <div class="hub-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="hub-info">
+            <h2 id="hub-nombre">—</h2>
+            <span id="hub-rol" class="hub-rol">JUGADOR</span>
+            <span id="hub-equipo" class="hub-equipo">Sin equipo</span>
+          </div>
+        </div>
+        <div class="bl-card" id="hub-stats-card">
+          <div id="hub-stats" style="font-size:0.8rem; color:var(--text-muted); display:grid; grid-template-columns:1fr 1fr; gap:5px;"></div>
+        </div>
+        <div class="hub-nav-grid">
+          <button class="btn-bluelock hub-nav-btn" id="hub-btn-plantilla" onclick="renderPlantilla(); showScreen('screen-plantilla')">
+            <i class="fas fa-users"></i>
+            <span>PLANTILLA</span>
+          </button>
+          <button class="btn-bluelock hub-nav-btn" onclick="renderEntrenar(); showScreen('screen-entrenar')">
+            <i class="fas fa-dumbbell"></i>
+            <span>ENTRENAR</span>
+          </button>
+          <button class="btn-bluelock hub-nav-btn" onclick="renderClasificacion(); showScreen('screen-clasificacion')">
+            <i class="fas fa-table"></i>
+            <span>CLASIFICACIÓN</span>
+          </button>
+          <button class="btn-bluelock hub-nav-btn" onclick="renderTactica(); showScreen('screen-tactica')">
+            <i class="fas fa-chess-board"></i>
+            <span>TÁCTICA</span>
+          </button>
+          <button class="btn-bluelock hub-nav-btn" onclick="renderMercado(); showScreen('screen-mercado')">
+            <i class="fas fa-cart-shopping"></i>
+            <span>MERCADO</span>
+          </button>
+          <button class="btn-bluelock hub-nav-btn" onclick="showScreen('screen-ajustes')">
+            <i class="fas fa-cog"></i>
+            <span>AJUSTES</span>
+          </button>
+        </div>
+        <button class="btn-bluelock btn-gold" style="width:100%; justify-content:center; margin-top:12px;" onclick="jugarProximoPartido()">
+          <i class="fas fa-fire"></i> JUGAR PRÓXIMO PARTIDO
+        </button>
+      </div>
+    </section>
+
+    <!-- PANTALLA 4: PLANTILLA -->
+    <section id="screen-plantilla" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="limpiarPlantillaPreview(); goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2 id="plantilla-titulo">PLANTILLA</h2>
+          <span id="plantilla-equipo" style="color:var(--blue-lock-cyan); font-weight:700;"></span>
+        </div>
+        <div class="plantilla-tabs" id="plantilla-tabs">
+          <button class="plantilla-tab active" data-vista="info" onclick="cambiarVistaPlantilla('info')">INFORMACIÓN</button>
+          <button class="plantilla-tab" data-vista="stats" onclick="cambiarVistaPlantilla('stats')">ESTADÍSTICAS</button>
+        </div>
+        <div id="plantilla-sort-bar"></div>
+        <div id="plantilla-grid" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 4B: ENTRENAR -->
+    <section id="screen-entrenar" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>ENTRENAMIENTO</h2>
+          <span style="color:var(--gold-ego); font-weight:700;">🪙 <span id="entrenar-monedas">1000</span></span>
+        </div>
+        <div id="entrenar-stats" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 4C: CLASIFICACIÓN -->
+    <section id="screen-clasificacion" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>CLASIFICACIÓN</h2>
+        </div>
+        <div class="div-tabs" id="clasificacion-tabs">
+          <button class="div-tab active" data-div="primera" onclick="cambiarClasificacionDiv('primera')">🏆 LIGA NEO EGOTÍSTA</button>
+          <button class="div-tab" data-div="segunda" onclick="cambiarClasificacionDiv('segunda')">🎓 LIGA NACIONAL JAPONESA</button>
+        </div>
+        <div id="clasificacion-tabla" style="width:100%;"></div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 4D: TÁCTICA -->
+    <section id="screen-tactica" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="guardarAlineacion(); goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>TÁCTICA</h2>
+          <span id="tactica-equipo" style="color:var(--blue-lock-cyan); font-weight:700;"></span>
+        </div>
+        <div class="tactica-formation-bar" id="tactica-formation-bar">
+          <button class="tactica-formation-btn active" data-form="4-3-3" onclick="cambiarFormacion('4-3-3')">4-3-3</button>
+          <button class="tactica-formation-btn" data-form="4-4-2" onclick="cambiarFormacion('4-4-2')">4-4-2</button>
+          <button class="tactica-formation-btn" data-form="3-5-2" onclick="cambiarFormacion('3-5-2')">3-5-2</button>
+          <button class="tactica-formation-btn" data-form="4-1-4-1" onclick="cambiarFormacion('4-1-4-1')">4-1-4-1</button>
+          <button class="tactica-formation-btn" data-form="4-2-3-1" onclick="cambiarFormacion('4-2-3-1')" title="Racional - Doble pivote con enganche (Bastard München)">4-2-3-1</button>
+          <button class="tactica-formation-btn" data-form="3-4-3" onclick="cambiarFormacion('3-4-3')" title="Egoísta - Ataque total sin laterales (Blue Lock Eleven)">3-4-3</button>
+        </div>
+        <div class="tactica-pitch" id="tactica-pitch"></div>
+        <h4 style="font-size:0.8rem;color:var(--text-muted);margin:8px 0 4px;text-transform:uppercase;">SUPLENTES</h4>
+        <div class="tactica-subs-grid" id="tactica-subs"></div>
+        <button class="btn-bluelock btn-gold" style="width:100%;justify-content:center;margin-top:10px;" onclick="guardarAlineacion(); mostrarModal('ALINEACIÓN GUARDADA', 'La formación y los titulares han sido guardados.');">
+          <i class="fas fa-save"></i> GUARDAR ALINEACIÓN
+        </button>
+      </div>
+    </section>
+
+    <!-- PANTALLA 4E: MERCADO DE FICHAJES -->
+    <section id="screen-mercado" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>MERCADO DE FICHAJES</h2>
+          <span style="color:var(--gold-ego); font-weight:700;">🪙 <span id="mercado-presupuesto">0</span></span>
+        </div>
+        <div class="mercado-filtros">
+          <input type="text" id="mercado-buscar" class="mercado-input" placeholder="Buscar jugador..." oninput="filtrarMercado()">
+          <div class="mercado-selects">
+            <div class="mercado-dropdown" id="dd-posicion">
+              <button class="mercado-drop-btn" onclick="toggleFiltroDropdown('posicion')">
+                <span id="mercado-posicion-label">Posición</span><i class="fas fa-chevron-down"></i>
+              </button>
+              <div class="mercado-drop-panel" id="mercado-posicion-panel">
+                <button class="mercado-opt active" data-val="" onclick="setFiltroMercado('posicion','')">Todas</button>
+                <button class="mercado-opt" data-val="POR" onclick="setFiltroMercado('posicion','POR')">POR</button>
+                <button class="mercado-opt" data-val="DFC" onclick="setFiltroMercado('posicion','DFC')">DFC</button>
+                <button class="mercado-opt" data-val="LI" onclick="setFiltroMercado('posicion','LI')">LI</button>
+                <button class="mercado-opt" data-val="LD" onclick="setFiltroMercado('posicion','LD')">LD</button>
+                <button class="mercado-opt" data-val="CAI" onclick="setFiltroMercado('posicion','CAI')">CAI</button>
+                <button class="mercado-opt" data-val="CAD" onclick="setFiltroMercado('posicion','CAD')">CAD</button>
+                <button class="mercado-opt" data-val="MCD" onclick="setFiltroMercado('posicion','MCD')">MCD</button>
+                <button class="mercado-opt" data-val="MC" onclick="setFiltroMercado('posicion','MC')">MC</button>
+                <button class="mercado-opt" data-val="MCO" onclick="setFiltroMercado('posicion','MCO')">MCO</button>
+                <button class="mercado-opt" data-val="MI" onclick="setFiltroMercado('posicion','MI')">MI</button>
+                <button class="mercado-opt" data-val="MD" onclick="setFiltroMercado('posicion','MD')">MD</button>
+                <button class="mercado-opt" data-val="EI" onclick="setFiltroMercado('posicion','EI')">EI</button>
+                <button class="mercado-opt" data-val="ED" onclick="setFiltroMercado('posicion','ED')">ED</button>
+                <button class="mercado-opt" data-val="SD" onclick="setFiltroMercado('posicion','SD')">SD</button>
+                <button class="mercado-opt" data-val="DC" onclick="setFiltroMercado('posicion','DC')">DC</button>
+              </div>
+            </div>
+            <div class="mercado-dropdown" id="dd-division">
+              <button class="mercado-drop-btn" onclick="toggleFiltroDropdown('division')">
+                <span id="mercado-division-label">División</span><i class="fas fa-chevron-down"></i>
+              </button>
+              <div class="mercado-drop-panel" id="mercado-division-panel">
+                <button class="mercado-opt active" data-val="" onclick="setFiltroMercado('division','')">Todas</button>
+                <button class="mercado-opt" data-val="primera" onclick="setFiltroMercado('division','primera')">1.ª División Neo Egoísta</button>
+                <button class="mercado-opt" data-val="segunda" onclick="setFiltroMercado('division','segunda')">2.ª División Institutos</button>
+              </div>
+            </div>
+            <div class="mercado-dropdown" id="dd-orden">
+              <button class="mercado-drop-btn" onclick="toggleFiltroDropdown('orden')">
+                <span id="mercado-orden-label">Orden</span><i class="fas fa-chevron-down"></i>
+              </button>
+              <div class="mercado-drop-panel" id="mercado-orden-panel">
+                <button class="mercado-opt active" data-val="grl" onclick="setFiltroMercado('orden','grl')">Mayor GRL</button>
+                <button class="mercado-opt" data-val="precio" onclick="setFiltroMercado('orden','precio')">Menor Precio</button>
+                <button class="mercado-opt" data-val="nombre" onclick="setFiltroMercado('orden','nombre')">Nombre</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="mercado-lista" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 4: TIENDA -->
+    <section id="screen-tienda" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>TIENDA DE EGO</h2>
+        </div>
+        <div id="shop-grid" class="grid-2"></div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 5: LOGROS -->
+    <section id="screen-logros" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>LOGROS</h2>
+        </div>
+        <div id="achievements-grid" style="display:flex; flex-direction:column; gap:10px;"></div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 6: AJUSTES -->
+    <section id="screen-ajustes" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>AJUSTES</h2>
+        </div>
+        <div class="bl-card">
+          <h4 style="color:var(--blue-lock-cyan); margin-bottom:8px;">Audio & Efectos</h4>
+          <div class="audio-player">
+            <button class="btn-play" id="btn-play-theme" aria-label="Reproducir tema">
+              <i class="fas fa-play" id="play-icon"></i>
+            </button>
+            <div class="audio-info">
+              <span class="audio-title">Blue Lock Theme</span>
+              <span class="audio-time" id="audio-time">0:00 / 0:00</span>
+            </div>
+            <div class="audio-progress-bar">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+          </div>
+          <audio id="theme-audio" src="sounds/blue-lock-theme.mp3" loop preload="auto"></audio>
+          <audio id="goal-sound" src="sounds/blue-lock-goal-sound-effect.mp3" preload="auto"></audio>
+          <div class="volume-control">
+            <i class="fas fa-volume-low" id="vol-icon"></i>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.15">
+            <span id="vol-pct">15%</span>
+          </div>
+          <div class="form-group" style="margin-top:10px;">
+            <label><input type="checkbox" checked> Efectos de Sonido (SFX)</label>
+          </div>
+          <button class="btn-bluelock" style="width:100%;justify-content:center;margin-top:8px;" onclick="reprobarGol()">
+            <i class="fas fa-futbol"></i> PROBAR SONIDO DE GOL
+          </button>
+        </div>
+        <div class="bl-card">
+          <h4 style="color:var(--danger-red); margin-bottom:8px;">Datos de Partida</h4>
+          <button class="btn-bluelock" style="border-color:var(--danger-red); width:100%; justify-content:center;" onclick="localStorage.removeItem('bl_manager_save'); localStorage.removeItem('blue_lock_save'); location.reload();">
+            <i class="fas fa-trash"></i> BORRAR DATOS GUARDADOS
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODAL POPUP -->
+    <div id="modal-overlay" class="modal-overlay">
+      <div class="modal-content">
+        <h3 id="modal-title" style="color:var(--blue-lock-cyan); margin-bottom:10px;">AVISO</h3>
+        <div id="modal-body" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;"></div>
+        <button class="btn-bluelock" style="width:100%; justify-content:center;" onclick="cerrarModal()">ACEPTAR</button>
+      </div>
+    </div>
+
+    <!-- MODAL FICHA JUGADOR -->
+    <div id="ficha-modal-overlay" class="modal-overlay ficha-overlay" onclick="if(event.target===this)cerrarFicha()">
+      <div class="ficha-card">
+        <button class="ficha-close" onclick="cerrarFicha()" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+        <div id="ficha-content"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JS Scripts Load Order -->
+  <script src="js/database.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
