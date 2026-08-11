@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!t.clasificacion) t.clasificacion = {};
     if (!t.partidosJugados) t.partidosJugados = [];
     if (!t.estaminaNPC) t.estaminaNPC = {};
+    if (!data.manager.listaTraspasos) data.manager.listaTraspasos = [];
     const liga = getLigaDeManager(data);
     if (liga && !t.calendario[liga.nombre]) {
       t.calendario[liga.nombre] = generarCalendarioRoundRobin(liga.equipos.map(e => e.id));
@@ -276,6 +277,15 @@ document.addEventListener('DOMContentLoaded', () => {
     badge.style.display = noLeidos > 0 ? 'flex' : 'none';
   };
 
+  function renderizarStatsOferta(info) {
+    if (!info) return '';
+    const esPOR = info.posicion === 'POR';
+    const stat = (e, v) => `<div class="pfila-stat"><span>${e}</span>${v || 60}</div>`;
+    return esPOR
+      ? `${stat('DIV', info.div)}${stat('HAN', info.han)}${stat('KIC', info.kic)}${stat('REF', info.ref)}${stat('SPD', info.spd)}${stat('POS', info.pos)}`
+      : `${stat('PAC', info.pac)}${stat('SHO', info.tiro)}${stat('PAS', info.pase)}${stat('DRI', info.regate)}${stat('DEF', info.defensa)}${stat('PHY', info.phy)}`;
+  }
+
   window.abrirMensaje = function (id) {
     const buzon = estadoBuzon;
     const msg = (buzon?.mensajes || []).find(m => m.id === id);
@@ -300,13 +310,53 @@ document.addEventListener('DOMContentLoaded', () => {
     if (lista) lista.style.display = 'none';
     if (detalle) {
       detalle.style.display = 'block';
+      let ofertasHtml = '';
+      if (msg.tipo === 'oferta' && Array.isArray(msg.ofertas) && msg.ofertas.length) {
+        if (msg.jugadorInfo && !msg.jugadorInfo.equipo) {
+          const jugDB = todosLosJugadores().find(p => p.id === msg.jugadorInfo.id);
+          if (jugDB) msg.jugadorInfo.equipo = jugDB.equipo;
+        }
+        const jugCard = msg.jugadorInfo
+          ? `<div class="plantilla-card-wrapper">
+              <div class="pfila pfila-info-row pfila-oferta">
+                ${pfilaContenido(msg.jugadorInfo)}
+                <div class="buzon-oferta-stats">${renderizarStatsOferta(msg.jugadorInfo)}</div>
+              </div>
+            </div>`
+          : '';
+        ofertasHtml = `${jugCard}<div class="buzon-ofertas">` + msg.ofertas.map((o, i) => `
+          <div class="buzon-oferta">
+            <div class="buzon-oferta-club">
+              <span class="buzon-oferta-logo">${htmlEscudoEquipo(o.club)}</span>
+              <span class="buzon-oferta-nombre">${o.club}</span>
+            </div>
+            <div class="buzon-oferta-precio">${formatearYenes(o.precio)}</div>
+            ${typeof o.precioInicial === 'number' && o.precio !== o.precioInicial
+              ? `<div class="buzon-oferta-subida"><i class="fas fa-arrow-up"></i> EL CLUB TE OFRECE ${formatearYenes(o.precio)}</div>`
+              : ''}
+            <div class="buzon-oferta-acciones">
+              <button class="buzon-oferta-btn aceptar" onclick="aceptarOferta('${msg.id}','${o.id}')"><i class="fas fa-check"></i> ACEPTAR</button>
+              <button class="buzon-oferta-btn rechazar" onclick="rechazarOferta('${msg.id}','${o.id}')"><i class="fas fa-times"></i> RECHAZAR</button>
+              <button class="buzon-oferta-btn contra" onclick="mostrarContraoferta('${msg.id}','${o.id}')"><i class="fas fa-handshake"></i> CONTRAOFERTAR</button>
+            </div>
+            <div class="buzon-contraoferta" id="contra-${o.id}" style="display:none;">
+              <span class="buzon-contraoferta-titulo">PEDIR UN % MÁS:</span>
+              <div class="buzon-contraoferta-opts">
+                <button class="buzon-contra-btn" onclick="enviarContraoferta('${msg.id}','${o.id}',5)">+5%</button>
+                <button class="buzon-contra-btn" onclick="enviarContraoferta('${msg.id}','${o.id}',10)">+10%</button>
+                <button class="buzon-contra-btn" onclick="enviarContraoferta('${msg.id}','${o.id}',15)">+15%</button>
+                <button class="buzon-contra-btn" onclick="enviarContraoferta('${msg.id}','${o.id}',20)">+20%</button>
+              </div>
+            </div>
+          </div>`).join('') + `</div>`;
+      }
       detalle.innerHTML = `
         <div class="buzon-detalle-card">
           <div class="buzon-detalle-remitente">DE: ${msg.remitente}</div>
           <div class="buzon-detalle-asunto">${msg.asunto}</div>
-          <div class="buzon-detalle-meta">Jornada ${msg.jornada} · ${msg.tipo === 'medico' ? '🚨 Alerta' : '📋 Información'}</div>
+          <div class="buzon-detalle-meta">Jornada ${msg.jornada} · ${msg.tipo === 'medico' ? '🚨 Alerta' : msg.tipo === 'oferta' ? '💰 Oferta de traspaso' : '📋 Información'}</div>
           <div class="buzon-detalle-cuerpo">${msg.cuerpo}</div>
-          <button class="btn-bluelock" style="width:100%;justify-content:center;margin-top:10px;" onclick="volverListaBuzon()"><i class="fas fa-arrow-left"></i> VOLVER A LA BANDEJA</button>
+          ${ofertasHtml}
         </div>`;
     }
   };
@@ -317,6 +367,193 @@ document.addEventListener('DOMContentLoaded', () => {
     if (lista) lista.style.display = 'flex';
     if (detalle) detalle.style.display = 'none';
     renderBuzon();
+  };
+
+  window.volverListaBuzonSiDetalle = function () {
+    const detalle = document.getElementById('buzon-detalle');
+    if (detalle && detalle.style.display !== 'none') {
+      volverListaBuzon();
+    } else {
+      goBack();
+    }
+  };
+
+  function cerrarOfertaEnMensaje(data, msgId, ofertaId) {
+    const buzon = getBuzon(data);
+    const msg = (buzon.mensajes || []).find(m => m.id === msgId);
+    if (!msg) return;
+    if (Array.isArray(msg.ofertas)) {
+      msg.ofertas = msg.ofertas.filter(o => o.id !== ofertaId);
+    }
+    data.manager.buzon = buzon;
+  }
+
+  function refrescarBuzonTrasOferta(msgId) {
+    try {
+      const saved = localStorage.getItem('blue_lock_save');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.manager) {
+          const buzon = getBuzon(data);
+          if (Array.isArray(buzon.mensajes)) {
+            buzon.mensajes = buzon.mensajes.filter(m => {
+              if (m.tipo === 'oferta') return Array.isArray(m.ofertas) && m.ofertas.length > 0;
+              return true;
+            });
+          }
+          data.manager.buzon = buzon;
+          localStorage.setItem('blue_lock_save', JSON.stringify(data));
+        }
+      }
+    } catch (e) { /* noop */ }
+    actualizarBuzonBadge();
+    const presupuestoEl = document.getElementById('mercado-presupuesto');
+    if (presupuestoEl) presupuestoEl.textContent = formatearYenes(getPresupuestoManager());
+    const detalle = document.getElementById('buzon-detalle');
+    const lista = document.getElementById('buzon-lista');
+    const msgSigue = (estadoBuzon?.mensajes || []).some(m => m.id === msgId);
+    if (msgSigue) {
+      abrirMensaje(msgId);
+    } else {
+      if (detalle) detalle.style.display = 'none';
+      renderBuzon();
+      if (lista) lista.style.display = 'flex';
+    }
+  }
+
+  window.aceptarOferta = function (msgId, ofertaId) {
+    let saved = localStorage.getItem('blue_lock_save');
+    if (!saved) return;
+    let data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    const buzon = getBuzon(data);
+    const msg = (buzon.mensajes || []).find(m => m.id === msgId);
+    const oferta = msg && Array.isArray(msg.ofertas) ? msg.ofertas.find(o => o.id === ofertaId) : null;
+    if (!oferta) return;
+
+    const jugadorId = oferta.jugadorId;
+    const precio = oferta.precio;
+    if (!data.manager.vendidos) data.manager.vendidos = [];
+    if (!data.manager.vendidos.includes(jugadorId)) data.manager.vendidos.push(jugadorId);
+    if (data.manager.fichajes) {
+      data.manager.fichajes = data.manager.fichajes.filter(f => f.id !== jugadorId);
+    }
+    if (data.manager.listaTraspasos) {
+      data.manager.listaTraspasos = data.manager.listaTraspasos.filter(id => id !== jugadorId);
+    }
+    data.manager.presupuesto = (data.manager.presupuesto || 0) + precio;
+
+    // Limpiar cualquier oferta pendiente de ese jugador en otros mensajes
+    (buzon.mensajes || []).forEach(m => {
+      if (Array.isArray(m.ofertas)) {
+        m.ofertas = m.ofertas.filter(o => o.jugadorId !== jugadorId);
+      }
+    });
+    data.manager.buzon = buzon;
+    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+
+    const clubNombre = oferta.club || 'el club';
+    const nombreJug = getJugador(jugadorId, data.manager.equipo)?.nombre || oferta.jugador || 'el jugador';
+    mostrarModal('¡TRASPASO COMPLETADO!', `Has vendido a ${nombreJug} a ${clubNombre} por ${formatearYenes(precio)}.`);
+    refrescarBuzonTrasOferta(msgId);
+    filtrarMercado();
+  };
+
+  window.rechazarOferta = function (msgId, ofertaId) {
+    let saved = localStorage.getItem('blue_lock_save');
+    if (!saved) return;
+    let data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    const buzon = getBuzon(data);
+    const msg = (buzon.mensajes || []).find(m => m.id === msgId);
+    if (!msg) return;
+    const oferta = Array.isArray(msg.ofertas) ? msg.ofertas.find(o => o.id === ofertaId) : null;
+    const nombre = oferta?.club || 'El club';
+    cerrarOfertaEnMensaje(data, msgId, ofertaId);
+    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    mostrarModal('OFERTA RECHAZADA', `Has rechazado la oferta de ${nombre}.`);
+    refrescarBuzonTrasOferta(msgId);
+  };
+
+  window.mostrarContraoferta = function (msgId, ofertaId) {
+    const cont = document.getElementById(`contra-${ofertaId}`);
+    if (!cont) return;
+    cont.style.display = cont.style.display === 'none' ? 'flex' : 'none';
+  };
+
+  window.enviarContraoferta = function (msgId, ofertaId, pct) {
+    let saved = localStorage.getItem('blue_lock_save');
+    if (!saved) return;
+    let data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    const buzon = getBuzon(data);
+    const msg = (buzon.mensajes || []).find(m => m.id === msgId);
+    const oferta = msg && Array.isArray(msg.ofertas) ? msg.ofertas.find(o => o.id === ofertaId) : null;
+    if (!oferta) return;
+
+    const jugadorId = oferta.jugadorId;
+    const jug = getJugador(jugadorId, data.manager.equipo);
+    const grl = calcularGrlJugador(jug);
+    const valor = calcularValor(grl, jug);
+    const club = typeof NEO_EQUIPOS !== 'undefined' ? NEO_EQUIPOS.find(e => e.id === oferta.clubId) : null;
+    const tope = Math.round(valor * 1.5);
+    const limiteClub = Math.min(club?.budget || 0, tope);
+    if (typeof oferta.rondas !== 'number') oferta.rondas = 0;
+    if (typeof oferta.precioInicial !== 'number') oferta.precioInicial = oferta.precio;
+    const precioActual = oferta.precio;
+    const pedido = Math.round(precioActual * (1 + pct / 100));
+
+    // Rechazo forzoso: no puede pagarlo o se cansa de negociar
+    if (pedido > limiteClub || oferta.rondas >= 2) {
+      const motivo = oferta.rondas >= 2
+        ? `${club?.name || 'El club'} se cansa de negociar y retira su oferta.`
+        : `${club?.name || 'El club'} no puede pagar tu contraoferta de ${formatearYenes(pedido)} y la retira.`;
+      cerrarOfertaEnMensaje(data, msgId, ofertaId);
+      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      mostrarModal('CONTRAOFERTA RECHAZADA', motivo);
+      refrescarBuzonTrasOferta(msgId);
+      return;
+    }
+
+    // Decisión aleatoria ponderada según qué tan lejos del valor pida el usuario
+    const distancia = Math.max(0, Math.min(1, (pedido - valor) / (tope - valor || 1)));
+    const probAceptar = 0.35 * (1 - distancia);
+    const probRechazar = 0.25 + 0.55 * distancia;
+    const probSubir = Math.max(0, 1 - probAceptar - probRechazar);
+    const r = Math.random();
+
+    if (r < probAceptar) {
+      // El club acepta el precio pedido, pero el traspaso se completa al pulsar ACEPTAR
+      oferta.precio = pedido;
+      oferta.rondas = (oferta.rondas || 0) + 1;
+      data.manager.buzon = buzon;
+      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+
+      mostrarModal('EL CLUB ACEPTA TU PRECIO', `${club?.name || 'El club'} acepta tu contraoferta de ${formatearYenes(pedido)} por ${jug?.nombre || 'el jugador'}. Pulsa ACEPTAR para completar el traspaso.`);
+      refrescarBuzonTrasOferta(msgId);
+      return;
+    }
+
+    if (r < probAceptar + probSubir) {
+      // El club sube su oferta a un precio intermedio
+      const factorSubida = 0.3 + Math.random() * 0.4;
+      let nuevo = Math.round(precioActual + (pedido - precioActual) * factorSubida);
+      nuevo = Math.min(nuevo, pedido, club?.budget || nuevo);
+      oferta.precio = nuevo;
+      oferta.rondas = (oferta.rondas || 0) + 1;
+      data.manager.buzon = buzon;
+      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+
+      mostrarModal('EL CLUB SUBE SU OFERTA', `${club?.name || 'El club'} no acepta tu contraoferta de ${formatearYenes(pedido)}, pero sube su oferta a ${formatearYenes(nuevo)} por ${jug?.nombre || 'el jugador'}. Puedes aceptar, rechazar o contraofertar de nuevo.`);
+      refrescarBuzonTrasOferta(msgId);
+      return;
+    }
+
+    // Rechazo por decisión aleatoria
+    cerrarOfertaEnMensaje(data, msgId, ofertaId);
+    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    mostrarModal('CONTRAOFERTA RECHAZADA', `${club?.name || 'El club'} rechaza tu contraoferta de ${formatearYenes(pedido)} y retira la oferta.`);
+    refrescarBuzonTrasOferta(msgId);
   };
 
   window.renderBuzon = function () {
@@ -334,12 +571,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (detalle) detalle.style.display = 'none';
     cont.style.display = 'flex';
 
-    const mensajes = [...(estadoBuzon?.mensajes || [])].sort((a, b) => {
-      const na = a.leido ? 1 : 0;
-      const nb = b.leido ? 1 : 0;
-      if (na !== nb) return na - nb;
-      return 0;
-    });
+    const mensajes = [...(estadoBuzon?.mensajes || [])]
+      .map((m, idx) => ({ m, idx }))
+      .sort((a, b) => {
+        const na = a.m.leido ? 1 : 0;
+        const nb = b.m.leido ? 1 : 0;
+        if (na !== nb) return na - nb;
+        return b.idx - a.idx;
+      })
+      .map(x => x.m);
 
     if (mensajes.length === 0) {
       cont.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">No tienes mensajes.</p>';
@@ -591,6 +831,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function activarPantalla(screenId) {
     if (screenId === 'screen-hub') {
       detenerMusicaPantalla();
+      try {
+        const saved = localStorage.getItem('blue_lock_save');
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (data.manager) getBuzon(data);
+        }
+      } catch (e) { /* noop */ }
+      actualizarBuzonBadge();
     }
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const target = document.getElementById(screenId);
@@ -888,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.cambiarSfxActivados = function (activado) {
     estadoAudio.sfxActivados = !!activado;
+    localStorage.setItem('bl_sfx_activados', activado ? 'true' : 'false');
     if (!estadoAudio.sfxActivados && estadoAudio.sfxReproduciendose) {
       detenerSFX(estadoAudio.sfxReproduciendose);
     }
@@ -896,6 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.toggleSfxIndividual = function (nombreSonido, activado) {
     estadoAudio.sfxIndividuales[nombreSonido] = !!activado;
+    localStorage.setItem('bl_sfx_individuales', JSON.stringify(estadoAudio.sfxIndividuales));
     if (!estadoAudio.sfxIndividuales[nombreSonido] && estadoAudio.sfxReproduciendose === nombreSonido) {
       detenerSFX(nombreSonido);
     }
@@ -1057,7 +1307,16 @@ document.addEventListener('DOMContentLoaded', () => {
   estadoAudio.volumenGeneral = savedVolume !== null ? parseFloat(savedVolume) : DEFAULT_VOLUME;
   if (isNaN(estadoAudio.volumenGeneral)) estadoAudio.volumenGeneral = DEFAULT_VOLUME;
   const cbSfx = document.getElementById('checkbox-sfx');
-  if (cbSfx) estadoAudio.sfxActivados = cbSfx.checked;
+  const savedSfxMaster = localStorage.getItem('bl_sfx_activados');
+  if (savedSfxMaster !== null) estadoAudio.sfxActivados = savedSfxMaster === 'true';
+  const savedSfxInd = localStorage.getItem('bl_sfx_individuales');
+  if (savedSfxInd) {
+    try {
+      const parsed = JSON.parse(savedSfxInd);
+      estadoAudio.sfxIndividuales = { ...estadoAudio.sfxIndividuales, ...parsed };
+    } catch (e) {}
+  }
+  if (cbSfx) cbSfx.checked = estadoAudio.sfxActivados;
   setVolume(estadoAudio.volumenGeneral);
   renderListaSFX();
 
@@ -2058,6 +2317,18 @@ document.addEventListener('DOMContentLoaded', () => {
     return base;
   }
 
+  function estaEnListaTraspasos(id) {
+    try {
+      const saved = localStorage.getItem('blue_lock_save');
+      if (!saved) return false;
+      const data = JSON.parse(saved);
+      if (data.tipo !== 'manager' || !data.manager) return false;
+      return (data.manager.listaTraspasos || []).includes(id);
+    } catch (e) {
+      return false;
+    }
+  }
+
   function posColor(pos) {
     const map = {
       POR: 'pos-purple',
@@ -2098,21 +2369,21 @@ document.addEventListener('DOMContentLoaded', () => {
     return jug.pie || jug.pierna || '—';
   }
 
-  function renderizarFilaInfo(jug) {
-    if (!jug) return '';
+  function pfilaContenido(jug) {
     const grl = calcularGrlJugador(jug);
     const foto = jug.foto || 'assets/players/default.png';
     const bandera = jug.bandera || '';
     const pie = pieTexto(jug);
     const tieneLogoClub = !!escudoEquipoPorNombre(jug.equipo);
-    return `<div class="pfila pfila-info-row">
+    const enLT = estaEnListaTraspasos(jug.id);
+    return `
       <div class="pfila-grl">${grl}</div>
       <div class="pfila-avatar">
         <img src="${foto}" onerror="this.onerror=null;this.src='assets/players/default.png';this.addEventListener('error',function(){this.style.display='none'})" alt="${jug.nombre}">
         <i class="fas fa-user plantilla-avatar-fallback"></i>
       </div>
       <div class="pfila-info">
-        <span class="pfila-name">${jug.nombre}</span>
+        <span class="pfila-name">${jug.nombre}${enLT ? ' <span class="lt-tag">LT</span>' : ''}</span>
         <span class="pfila-meta"><span class="${posColor(jug.posicion)}">${jug.posicion}</span> · ${jug.edad} años</span>
         ${jug.agenteLibre
           ? '<span class="pfila-valor gratis">GRATIS</span>'
@@ -2126,7 +2397,12 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="pfila-extra-item">${bandera} ${jug.nacionalidad || '—'}</span>
           <span class="pfila-extra-item"><i class="fas fa-shoe-prints"></i> ${pie}</span>
         </span>
-      </div>
+      </div>`;
+  }
+
+  function renderizarFilaInfo(jug) {
+    if (!jug) return '';
+    return `<div class="pfila pfila-info-row">${pfilaContenido(jug)}
     </div>`;
   }
 
@@ -2135,6 +2411,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const grl = calcularGrlJugador(jug);
     const foto = jug.foto || 'assets/players/default.png';
     const esPOR = jug.posicion === 'POR';
+    const enLT = estaEnListaTraspasos(jug.id);
     const statsHtml = esPOR
       ? `<div class="pfila-stat"><span>DIV</span>${jug.div || 60}</div>
          <div class="pfila-stat"><span>HAN</span>${jug.han || 60}</div>
@@ -2155,7 +2432,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <i class="fas fa-user plantilla-avatar-fallback"></i>
       </div>
       <div class="pfila-info">
-        <span class="pfila-name">${jug.nombre}</span>
+        <span class="pfila-name">${jug.nombre}${enLT ? ' <span class="lt-tag">LT</span>' : ''}</span>
         <span class="pfila-meta"><span class="${posColor(jug.posicion)}">${jug.posicion}</span> · ${jug.edad} años</span>
         <span class="pfila-valor">${formatearYenes(calcularValor(grl, jug))}</span>
       </div>
@@ -2505,7 +2782,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function formatearYenes(n) {
     if (typeof n !== 'number') return '—';
     if (n >= 1000000000) return `¥${(n / 1000000000).toFixed(1).replace('.', ',')}B`;
-    if (n >= 1000000) return `¥${Math.round(n / 1000000)}M`;
+    if (n >= 1000000) {
+      const m = n / 1000000;
+      const txt = Number.isInteger(m) ? String(m) : m.toFixed(1).replace('.', ',');
+      return `¥${txt}M`;
+    }
     return `¥${n}`;
   }
 
@@ -2701,7 +2982,7 @@ document.addEventListener('DOMContentLoaded', () => {
     container.innerHTML = html;
   };
 
-  window.ficharJugador = function (jugadorId) {
+  window.ficharJugador = function (jugadorId, precioOferta) {
     cerrarFicha();
     let saved = localStorage.getItem('blue_lock_save');
     if (!saved) return;
@@ -2719,12 +3000,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!jug) return;
     const grl = calcularGrlJugador(jug);
     const esAgente = jug.agenteLibre === true;
-    const valor = esAgente ? 0 : calcularValor(grl, jug);
+    const valorMercado = calcularValor(grl, jug);
+    const valor = esAgente ? 0 : (precioOferta !== undefined && precioOferta !== null && precioOferta !== '' ? Number(precioOferta) : valorMercado);
 
     // Límite de plantilla: 22 jugadores
     const plantillaActual = getPlantillaEquipo(data.manager.equipo);
     if (plantillaActual.length >= 22) {
       mostrarModal('PLANTILLA LLENA', 'Tu plantilla tiene el máximo de 22 jugadores. Vende o ofrece a algún jugador antes de fichar a otro.');
+      return;
+    }
+
+    if (!esAgente && ((typeof valor !== 'number' || !isFinite(valor)) || valor < valorMercado)) {
+      mostrarModal('OFERTA RECHAZADA', `El club rechaza tu oferta de ${formatearYenes(valor)} por ${jug.nombre}. Debes ofrecer al menos el valor de mercado (${formatearYenes(valorMercado)}).`);
       return;
     }
 
@@ -2754,31 +3041,51 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!saved) return;
     let data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
-    if (typeof data.manager.presupuesto !== 'number') {
-      getPresupuestoManager();
-      saved = localStorage.getItem('blue_lock_save');
-      if (!saved) return;
-      data = JSON.parse(saved);
-    }
 
     const jug = todosLosJugadores().find(p => p.id === jugadorId);
     if (!jug) return;
-    const grl = calcularGrlJugador(jug);
-    const valor = calcularValor(grl, jug);
 
-    if (!data.manager.vendidos) data.manager.vendidos = [];
-    if (!data.manager.vendidos.includes(jugadorId)) data.manager.vendidos.push(jugadorId);
-
-    if (data.manager.fichajes) {
-      data.manager.fichajes = data.manager.fichajes.filter(f => f.id !== jugadorId);
+    if (!data.manager.listaTraspasos) data.manager.listaTraspasos = [];
+    if (data.manager.listaTraspasos.includes(jugadorId)) {
+      mostrarModal('YA EN LA LISTA', `${jug.nombre} ya está en la lista de traspasos. Los clubes interesados te envían sus ofertas por el buzón.`);
+      return;
     }
-
-    data.manager.presupuesto = (data.manager.presupuesto || 0) + valor;
+    data.manager.listaTraspasos.push(jugadorId);
+    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    generarOfertasTraspaso(data);
     localStorage.setItem('blue_lock_save', JSON.stringify(data));
 
     document.getElementById('mercado-presupuesto').textContent = formatearYenes(data.manager.presupuesto);
-    mostrarModal('¡JUGADOR VENDIDO!', `Has ofrecido a ${jug.nombre} a otros equipos por ${formatearYenes(valor)}.`);
+    mostrarModal('JUGADOR EN LISTA DE TRASPASOS', `${jug.nombre} ha sido añadido a la lista de traspasos. Los clubes interesados te enviarán ofertas por el buzón de inmediato y en cada jornada mientras siga en la lista.`);
     filtrarMercado();
+    const plantillaScreen = document.getElementById('screen-plantilla');
+    if (plantillaScreen && plantillaScreen.classList.contains('active') && !previewPlantillaData) {
+      renderPlantillaContent();
+    }
+  };
+
+  window.quitarDeListaTraspasos = function (jugadorId) {
+    cerrarFicha();
+    let saved = localStorage.getItem('blue_lock_save');
+    if (!saved) return;
+    let data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+
+    const jug = todosLosJugadores().find(p => p.id === jugadorId);
+    if (!jug) return;
+
+    if (data.manager.listaTraspasos) {
+      data.manager.listaTraspasos = data.manager.listaTraspasos.filter(id => id !== jugadorId);
+    }
+    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+
+    document.getElementById('mercado-presupuesto').textContent = formatearYenes(data.manager.presupuesto);
+    mostrarModal('RETIRADO DE LA LISTA', `${jug.nombre} ya no está en la lista de traspasos.`);
+    filtrarMercado();
+    const plantillaScreen = document.getElementById('screen-plantilla');
+    if (plantillaScreen && plantillaScreen.classList.contains('active') && !previewPlantillaData) {
+      renderPlantillaContent();
+    }
   };
 
   // ===== ENTRENAMIENTO SEMANAL =====
@@ -2995,6 +3302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     onceIdsDeManager(data).forEach(id => descontarEstaminaPartido(data, id, eqManager.id));
     aplicarRecuperacionJornada(data);
     generarAlertasBuzon(data);
+    generarOfertasTraspaso(data);
     localStorage.setItem('blue_lock_save', JSON.stringify(data));
     sincronizarSlotActivo();
     document.getElementById('partido-btn-fin').style.display = 'block';
@@ -3008,6 +3316,133 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<div class="duelo-avatar">
       <img src="${foto}" onerror="this.onerror=null;this.src='assets/players/default.png';this.addEventListener('error',function(){this.style.display='none'})" alt="${jug.nombre || ''}">
     </div>`;
+  }
+
+  function contarPosicionClub(teamId, pos) {
+    const nombre = nombreEquipoPorId(teamId);
+    const plantilla = getPlantillaEquipo(nombre);
+    return plantilla.filter(p => p.posicion === pos).length;
+  }
+
+  function mejorGrlPosicionClub(teamId, pos) {
+    const nombre = nombreEquipoPorId(teamId);
+    const plantilla = getPlantillaEquipo(nombre);
+    const enPos = plantilla.filter(p => p.posicion === pos);
+    if (!enPos.length) return 0;
+    return Math.max(...enPos.map(p => calcularGrlJugador(p)));
+  }
+
+  function grlGlobalClub(teamId) {
+    if (typeof NEO_EQUIPOS !== 'undefined') {
+      const eq = NEO_EQUIPOS.find(e => e.id === teamId);
+      if (eq && typeof eq.grl === 'number') return eq.grl;
+    }
+    const nombre = nombreEquipoPorId(teamId);
+    return calcularTeamGrl(nombre);
+  }
+
+  function generarOfertasTraspaso(data) {
+    if (!data?.manager) return;
+    const lt = data.manager.listaTraspasos || [];
+    if (lt.length === 0) return;
+    const buzon = getBuzon(data);
+    const eqManager = NEO_EQUIPOS.find(e => e.name === data.manager.equipo);
+    if (!eqManager) return;
+    const jornada = data.manager.temporada?.jornadaActual ?? 0;
+    const clubes = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.filter(e => e.id !== eqManager.id && e.name !== data.manager.equipo) : [];
+
+    lt.forEach(jugId => {
+      const jug = getJugador(jugId, data.manager.equipo);
+      if (!jug) return;
+      const grl = calcularGrlJugador(jug);
+      const valor = calcularValor(grl, jug);
+      const pos = jug.posicion;
+      const ofertas = [];
+
+      // Clubes que ya hicieron una oferta por este jugador (no deben repetirse)
+      const clubesYaOfertantes = new Set();
+      (buzon.mensajes || []).forEach(m => {
+        if (m.tipo === 'oferta' && Array.isArray(m.ofertas)) {
+          m.ofertas.forEach(o => {
+            if (o.jugadorId === jugId && o.clubId) clubesYaOfertantes.add(o.clubId);
+          });
+        }
+      });
+
+      clubes.forEach(club => {
+        // 0. No repetir oferta del mismo club para el mismo jugador
+        if (clubesYaOfertantes.has(club.id)) return;
+        // 1. Presupuesto: el club debe poder pagar al menos el valor
+        if ((club.budget || 0) < valor) return;
+        // 2. GRL del club: el jugador no baja a un club mucho peor
+        const clubGrl = grlGlobalClub(club.id);
+        if (clubGrl < grl - 5) return;
+        // 3. Necesidad de posición: pocos jugadores en esa posición o mejoraría la plantilla
+        const cuenta = contarPosicionClub(club.id, pos);
+        const mejor = mejorGrlPosicionClub(club.id, pos);
+        const necesita = cuenta <= 3 || mejor < grl - 3;
+        if (!necesita) return;
+
+        // 4. Probabilidad de que el club haga una oferta esta jornada
+        if (Math.random() > 0.6) return;
+
+        const factor = 0.85 + Math.random() * 0.35; // entre 85% y 120% del valor
+        let precio = Math.round(valor * factor);
+        if (precio > club.budget) precio = club.budget;
+        ofertas.push({
+          id: 'of' + Date.now() + Math.floor(Math.random() * 1000),
+          clubId: club.id,
+          club: club.name,
+          jugadorId: jugId,
+          jugador: jug.nombre,
+          precio
+        });
+      });
+
+      if (ofertas.length === 0) return;
+      if (ofertas.length > 5) ofertas = ofertas.slice(0, 5);
+      const total = ofertas.reduce((a, o) => a + o.precio, 0);
+      const jugadorInfo = {
+        id: jug.id,
+        equipo: jug.equipo,
+        nombre: jug.nombre,
+        foto: jug.foto || '',
+        posicion: jug.posicion,
+        posicionSec: jug.posicionSec || jug.posicionSecundaria || '',
+        grl,
+        edad: jug.edad,
+        nacionalidad: jug.nacionalidad,
+        bandera: jug.bandera || '',
+        pie: pieTexto(jug),
+        stats: jug.stats || {},
+        tiro: jug.tiro, pase: jug.pase, regate: jug.regate,
+        defensa: jug.defensa, pac: jug.pac, phy: jug.phy,
+        div: jug.div, han: jug.han, kic: jug.kic, ref: jug.ref, spd: jug.spd, pos: jug.pos,
+        valor
+      };
+      // Si ya existe un mensaje de oferta para este jugador, añadir las nuevas ofertas a él
+      const existente = (buzon.mensajes || []).find(m => m.tipo === 'oferta' && Array.isArray(m.ofertas) && m.ofertas.some(o => o.jugadorId === jugId));
+      if (existente) {
+        existente.ofertas.push(...ofertas);
+        existente.totalOfertas = (existente.totalOfertas || 0) + total;
+        existente.leido = false;
+        if (!existente.jugadorInfo) existente.jugadorInfo = jugadorInfo;
+        return;
+      }
+      buzon.mensajes.push({
+        id: 'm' + Date.now() + Math.floor(Math.random() * 1000),
+        remitente: 'Jinpachi Ego',
+        asunto: `Ofertas por ${jug.nombre}`,
+        cuerpo: `Los siguientes clubes están interesados en fichar a ${jug.nombre}. Puedes aceptar, rechazar o contraofertar cada oferta:`,
+        leido: false,
+        jornada,
+        tipo: 'oferta',
+        ofertas,
+        totalOfertas: total,
+        jugadorInfo
+      });
+    });
+    data.manager.buzon = buzon;
   }
 
   function dueloCardHtml(jug, rol, accion) {
@@ -3417,9 +3852,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.tipo === 'manager' && data.manager) {
           const propios = new Set(getPlantillaEquipo(data.manager.equipo).map(p => p.id));
           if (propios.has(jug.id)) {
-            btnOferta = `<button class="ficha-oferta-btn vender" onclick="venderJugador('${jugadorId}')">
-              <i class="fas fa-tag"></i> OFERECER A EQUIPOS
-            </button>`;
+            const enLT = estaEnListaTraspasos(jug.id);
+            btnOferta = enLT
+              ? `<button class="ficha-oferta-btn vender" onclick="quitarDeListaTraspasos('${jugadorId}')">
+                  <i class="fas fa-undo"></i> RETIRAR DE LA LISTA DE TRASPASOS
+                </button>`
+              : `<button class="ficha-oferta-btn vender" onclick="venderJugador('${jugadorId}')">
+                  <i class="fas fa-tag"></i> OFERECER A EQUIPOS
+                </button>`;
           } else if (jug.agenteLibre === true) {
             btnOferta = `<button class="ficha-oferta-btn" onclick="ficharJugador('${jugadorId}')">
               <i class="fas fa-handshake"></i> FICHAR GRATIS
@@ -3428,9 +3868,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const presupuesto = data.manager.presupuesto ?? getPresupuestoManager();
             const valor = calcularValor(grlFicha, jug);
             const puede = presupuesto >= valor;
-            btnOferta = `<button class="ficha-oferta-btn ${puede ? '' : 'disabled'}" ${puede ? '' : 'disabled'} onclick="ficharJugador('${jugadorId}')">
-              <i class="fas fa-handshake"></i> ${puede ? 'REALIZAR OFERTA' : 'PRESUPUESTO INSUFICIENTE'}
-            </button>`;
+            btnOferta = `
+            <div class="ficha-oferta-box">
+              <div class="ficha-oferta-ref">VALOR DE MERCADO: ${formatearYenes(valor)}</div>
+              <input type="number" class="ficha-oferta-input" id="ficha-oferta-precio" min="${valor}" step="500000" value="${valor}" ${puede ? '' : 'disabled'}>
+              <button class="ficha-oferta-btn ${puede ? '' : 'disabled'}" ${puede ? '' : 'disabled'} onclick="ficharJugador('${jugadorId}', document.getElementById('ficha-oferta-precio').value)">
+                <i class="fas fa-handshake"></i> ${puede ? 'HACER OFERTA' : 'PRESUPUESTO INSUFICIENTE'}
+              </button>
+            </div>`;
           }
         }
       }

@@ -810,6 +810,22 @@ header {
   margin-bottom: 12px;
 }
 
+.hub-col-title {
+  font-family: var(--font-family);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--gold-ego);
+  padding: 4px 2px 6px;
+  border-bottom: 1px solid var(--bg-card-border);
+  text-align: left;
+}
+
+.hub-col-title:nth-child(2) {
+  text-align: right;
+}
+
 .hub-nav-btn {
   flex-direction: column;
   align-items: center;
@@ -2400,6 +2416,20 @@ header {
   text-overflow: ellipsis;
 }
 
+.lt-tag {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 5px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  line-height: 1.2;
+  color: #000;
+  background: #00e676;
+  border: 1px solid #00b248;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
 .pfila-meta {
   display: block;
   font-size: 0.65rem;
@@ -2764,6 +2794,166 @@ header {
   padding-top: 10px;
 }
 
+.buzon-ofertas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.buzon-oferta-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  padding: 8px 10px 4px;
+}
+
+.pfila.pfila-oferta {
+  flex-wrap: wrap;
+}
+
+.pfila-oferta .buzon-oferta-stats {
+  flex-basis: 100%;
+  padding: 8px 0 0;
+  margin-top: 6px;
+  border-top: 1px dashed var(--bg-card-border);
+}
+
+.buzon-oferta {
+  background: rgba(0, 243, 255, 0.05);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.buzon-oferta-club {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.buzon-oferta-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+}
+
+.buzon-oferta-logo img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.buzon-oferta-nombre {
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: var(--text-main);
+  flex: 1;
+}
+
+.buzon-oferta-precio {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--gold-ego);
+  letter-spacing: 1px;
+}
+
+.buzon-oferta-subida {
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: var(--blue-lock-cyan);
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.buzon-oferta-subida i {
+  color: #00e676;
+}
+
+.buzon-oferta-acciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 6px;
+}
+
+.buzon-oferta-btn {
+  font-family: var(--font-family);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #000;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 4px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.buzon-oferta-btn:active {
+  transform: scale(0.97);
+}
+
+.buzon-oferta-btn.aceptar {
+  background: linear-gradient(135deg, #00e676, #00b248);
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+}
+
+.buzon-oferta-btn.rechazar {
+  background: linear-gradient(135deg, #ff5252, #d32f2f);
+  box-shadow: 0 0 8px rgba(255, 82, 82, 0.4);
+}
+
+.buzon-oferta-btn.contra {
+  background: linear-gradient(135deg, #00f3ff, #00aaff);
+  box-shadow: 0 0 8px rgba(0, 243, 255, 0.4);
+}
+
+.buzon-contraoferta {
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px dashed var(--bg-card-border);
+  padding-top: 8px;
+}
+
+.buzon-contraoferta-titulo {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.buzon-contraoferta-opts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.buzon-contra-btn {
+  font-family: var(--font-family);
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #000;
+  background: linear-gradient(135deg, #7ffbff, #00f3ff);
+  border: 1px solid var(--blue-lock-cyan);
+  border-radius: 5px;
+  padding: 8px 0;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.buzon-contra-btn:active {
+  transform: scale(0.97);
+}
+
 /* Tactica Subs Grid */
 .tactica-subs-grid {
   display: grid;
@@ -3051,6 +3241,52 @@ header {
   cursor: pointer;
   box-shadow: 0 0 14px rgba(0, 243, 255, 0.45), inset 0 0 10px rgba(255, 255, 255, 0.3);
   transition: all 0.2s ease;
+}
+
+.ficha-oferta-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.ficha-oferta-box .ficha-oferta-btn {
+  margin-top: 0;
+}
+
+.ficha-oferta-ref {
+  font-family: var(--font-family);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--blue-lock-cyan);
+  text-align: center;
+}
+
+.ficha-oferta-input {
+  width: 100%;
+  padding: 12px 14px;
+  font-family: var(--font-family);
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--blue-lock-cyan);
+  background: rgba(0, 243, 255, 0.08);
+  border: 2px solid rgba(0, 243, 255, 0.5);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ficha-oferta-input:focus {
+  border-color: var(--blue-lock-cyan);
+  box-shadow: 0 0 12px rgba(0, 243, 255, 0.35);
+}
+
+.ficha-oferta-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .ficha-oferta-btn:hover:not(:disabled) {
