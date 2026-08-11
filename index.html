@@ -247,8 +247,9 @@
           <div id="hub-stats" style="font-size:0.8rem; color:var(--text-muted); display:grid; grid-template-columns:1fr 1fr; gap:5px;"></div>
         </div>
         <div class="hub-nav-grid">
-          <div class="hub-col-title">OPERACIONES Y OFICINA</div>
-          <div class="hub-col-title">GESTIÓN Y ESTRATEGIA</div>
+          <div class="hub-col-title">OFICINA E HISTORIA</div>
+          <div class="hub-col-title">ESTRATEGIA Y EQUIPO</div>
+          <div class="hub-col-title">GESTIÓN Y SISTEMA</div>
           <button class="btn-bluelock hub-nav-btn" id="hub-btn-buzon" onclick="renderBuzon(); showScreen('screen-buzon')">
             <i class="fas fa-envelope"></i>
             <span>BANDEJA</span>
@@ -258,6 +259,10 @@
             <i class="fas fa-users"></i>
             <span>PLANTILLA</span>
           </button>
+          <button class="btn-bluelock hub-nav-btn" onclick="renderMercado(); showScreen('screen-mercado')">
+            <i class="fas fa-cart-shopping"></i>
+            <span>MERCADO</span>
+          </button>
           <button class="btn-bluelock hub-nav-btn" onclick="renderEntrenar(); showScreen('screen-entrenar')">
             <i class="fas fa-dumbbell"></i>
             <span>ENTRENAR</span>
@@ -266,6 +271,10 @@
             <i class="fas fa-chess-board"></i>
             <span>TÁCTICA</span>
           </button>
+          <button class="btn-bluelock hub-nav-btn" onclick="renderCantera(); showScreen('screen-cantera')">
+            <i class="fas fa-gem"></i>
+            <span>PRÓXIMOS EGOÍSTAS</span>
+          </button>
           <button class="btn-bluelock hub-nav-btn" onclick="renderCalendario(); showScreen('screen-calendario')">
             <i class="fas fa-calendar-days"></i>
             <span>CALENDARIO</span>
@@ -273,10 +282,6 @@
           <button class="btn-bluelock hub-nav-btn" onclick="renderClasificacion(); showScreen('screen-clasificacion')">
             <i class="fas fa-table"></i>
             <span>CLASIFICACIÓN</span>
-          </button>
-          <button class="btn-bluelock hub-nav-btn" onclick="renderMercado(); showScreen('screen-mercado')">
-            <i class="fas fa-cart-shopping"></i>
-            <span>MERCADO</span>
           </button>
           <button class="btn-bluelock hub-nav-btn" onclick="showScreen('screen-ajustes')">
             <i class="fas fa-cog"></i>
@@ -291,9 +296,6 @@
 
     <!-- PANTALLA 3C: PARTIDO EN VIVO -->
     <section id="screen-partido" class="screen">
-      <div class="screen-top-bar">
-        <button class="back-btn" onclick="cancelarSimulacionPartido()"><i class="fas fa-arrow-left"></i> VOLVER</button>
-      </div>
       <div class="scroll-content">
         <div class="partido-jornada" id="partido-jornada"></div>
         <div class="partido-marcador" id="partido-marcador">
@@ -315,8 +317,7 @@
         <div id="partido-resultado"></div>
         <div id="partido-log"></div>
         <div id="partido-btn-fin" style="display:none; margin-top:12px;">
-          <button class="btn-bluelock btn-gold" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="verClasificacionTrasPartido()"><i class="fas fa-table"></i> VER CLASIFICACIÓN</button>
-          <button class="btn-bluelock" style="width:100%;justify-content:center;" onclick="volverAlHubTrasPartido()"><i class="fas fa-home"></i> VOLVER AL HUB</button>
+          <button class="btn-bluelock btn-gold" style="width:100%;justify-content:center;" onclick="volverAlHubTrasPartido()"><i class="fas fa-home"></i> CONTINUAR</button>
         </div>
       </div>
     </section>
@@ -333,7 +334,8 @@
         </div>
         <div class="plantilla-tabs" id="plantilla-tabs">
           <button class="plantilla-tab active" data-vista="info" onclick="cambiarVistaPlantilla('info')">INFORMACIÓN</button>
-          <button class="plantilla-tab" data-vista="stats" onclick="cambiarVistaPlantilla('stats')">ESTADÍSTICAS</button>
+          <button class="plantilla-tab" data-vista="stats" onclick="cambiarVistaPlantilla('stats')">ATRIBUTOS</button>
+          <button class="plantilla-tab" data-vista="rendimiento" onclick="cambiarVistaPlantilla('rendimiento')">RENDIMIENTO</button>
         </div>
         <div id="plantilla-sort-bar"></div>
         <div id="plantilla-grid" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -354,7 +356,7 @@
       </div>
     </section>
 
-    <!-- PANTALLA 4C: CLASIFICACIÓN -->
+    <!-- PANTALLA 4C: CLASIFICACIÓN (lista de países) -->
     <section id="screen-clasificacion" class="screen">
       <div class="screen-top-bar">
         <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
@@ -363,7 +365,26 @@
         <div class="section-header">
           <h2>CLASIFICACIÓN</h2>
         </div>
-        <div id="clasificacion-arbol" style="width:100%;"></div>
+        <div id="clasificacion-paises" style="width:100%; display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 4C-BIS: CLASIFICACIÓN DE UNA LIGA (país seleccionado) -->
+    <section id="screen-clasificacion-liga" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2 id="clasificacion-liga-titulo">LIGA</h2>
+          <span id="clasificacion-liga-sub" style="color:var(--blue-lock-cyan); font-weight:700;"></span>
+        </div>
+        <div id="clasificacion-liga-ligas" style="display:flex; gap:6px; margin-bottom:8px; overflow-x:auto;"></div>
+        <div class="plantilla-tabs" id="clasificacion-liga-tabs">
+          <button class="plantilla-tab active" data-vista="tabla" onclick="cambiarVistaClasificacionLiga('tabla')">CLASIFICACIÓN</button>
+          <button class="plantilla-tab" data-vista="estadisticas" onclick="cambiarVistaClasificacionLiga('estadisticas')">ESTADÍSTICAS</button>
+        </div>
+        <div id="clasificacion-liga-contenido" style="width:100%;"></div>
       </div>
     </section>
 
@@ -584,6 +605,19 @@
       </div>
     </section>
 
+    <!-- PANTALLA 8: PRÓXIMOS EGOÍSTAS (CANTERA) -->
+    <section id="screen-cantera" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>PRÓXIMOS EGOÍSTAS</h2>
+        </div>
+        <div id="cantera-content"></div>
+      </div>
+    </section>
+
     <!-- MODAL POPUP -->
     <div id="modal-overlay" class="modal-overlay">
       <div class="modal-content">
@@ -603,8 +637,11 @@
 
   </div>
 
+  <!-- Visor de errores (diagnóstico) -->
+  <div id="error-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);color:#ff5252;font-family:monospace;font-size:13px;padding:20px;white-space:pre-wrap;z-index:9999;display:none;"></div>
+
   <!-- JS Scripts Load Order -->
   <script src="js/database.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20260811-plantilla"></script>
 </body>
 </html>
