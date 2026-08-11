@@ -20,8 +20,330 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let plantillaSort = { by: 'posicion', asc: true };
   let plantillaVista = 'info';
-  let clasificacionDiv = 'primera';
+  let clasificacionPaisesAbiertos = new Set();
   const POS_ORDER = { POR:0, DFC:1, LI:2, LD:3, CAI:4, CAD:5, MCD:6, MC:7, MCO:8, MI:9, MD:10, EI:11, ED:12, SD:13, DC:14 };
+
+  // ===== ESTADO DE TEMPORADA (MODO CARRERA MANAGER) =====
+  function generarCalendarioRoundRobin(ids) {
+    const equipos = ids.slice();
+    if (equipos.length % 2 === 1) equipos.push(null);
+    const jornadas = [];
+    const n = equipos.length;
+    for (let r = 0; r < n - 1; r++) {
+      const pares = [];
+      for (let i = 0; i < n / 2; i++) {
+        const a = equipos[i];
+        const b = equipos[n - 1 - i];
+        if (a !== null && b !== null) {
+          const local = (r % 2 === 0) ? a : b;
+          const visit = (r % 2 === 0) ? b : a;
+          pares.push([local, visit]);
+        }
+      }
+      jornadas.push(pares);
+      equipos.splice(1, 0, equipos.pop());
+    }
+    const vuelta = jornadas.map(j => j.map(([l, v]) => [v, l]));
+    return jornadas.concat(vuelta);
+  }
+
+  function getLigaDeManager(data) {
+    if (!data?.manager?.equipo || typeof NEO_EQUIPOS === 'undefined') return null;
+    const eq = NEO_EQUIPOS.find(e => e.name === data.manager.equipo);
+    if (!eq) return null;
+    if (typeof CONFIG_PAISES === 'undefined') return null;
+    for (const pais of CONFIG_PAISES) {
+      for (const liga of pais.ligas) {
+        if (liga.equipos.some(e => e.id === eq.id)) return liga;
+      }
+    }
+    return null;
+  }
+
+  function getTemporada(data) {
+    if (!data.manager.temporada) {
+      data.manager.temporada = { jornadaActual: 0, calendario: {}, clasificacion: {}, partidosJugados: [], estaminaNPC: {} };
+    }
+    const t = data.manager.temporada;
+    if (typeof t.jornadaActual !== 'number') t.jornadaActual = 0;
+    if (!t.calendario) t.calendario = {};
+    if (!t.clasificacion) t.clasificacion = {};
+    if (!t.partidosJugados) t.partidosJugados = [];
+    if (!t.estaminaNPC) t.estaminaNPC = {};
+    const liga = getLigaDeManager(data);
+    if (liga && !t.calendario[liga.nombre]) {
+      t.calendario[liga.nombre] = generarCalendarioRoundRobin(liga.equipos.map(e => e.id));
+      liga.equipos.forEach(e => {
+        if (!t.clasificacion[e.id]) t.clasificacion[e.id] = { pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 };
+      });
+    }
+    return { temporada: t, liga };
+  }
+
+  function getPlantillaPorNombre(nombreEquipo) {
+    return getPlantillaEquipo(nombreEquipo);
+  }
+
+  function calcularTeamGrl(nombreEquipo) {
+    const plantilla = getPlantillaPorNombre(nombreEquipo);
+    if (plantilla && plantilla.length) {
+      const sum = plantilla.reduce((a, p) => {
+        const grl = calcularGrlJugador(p);
+        const est = p.estamina ?? 100;
+        const factor = est < 50 ? 0.85 : 1;
+        return a + grl * factor;
+      }, 0);
+      return sum / plantilla.length;
+    }
+    const eq = typeof NEO_EQUIPOS !== 'undefined' ? NEO_EQUIPOS.find(e => e.name === nombreEquipo) : null;
+    return eq?.grl ?? 60;
+  }
+
+  // ===== ESTAMINA (MODO CARRERA MANAGER) =====
+  const ESTAMINA_MAX = 100;
+
+  function teamIdPorNombre(nombre) {
+    if (typeof NEO_EQUIPOS === 'undefined' || !nombre) return null;
+    const eq = NEO_EQUIPOS.find(e => e.name === nombre);
+    return eq ? eq.id : null;
+  }
+
+  function esEquipoManager(data, teamId) {
+    const miEq = teamIdPorNombre(data?.manager?.equipo);
+    return !!(miEq && teamId === miEq);
+  }
+
+  function leerEstamina(jug, teamId) {
+    if (!jug || !jug.id) return ESTAMINA_MAX;
+    try {
+      const saved = localStorage.getItem('blue_lock_save');
+      if (!saved) return jug.estamina ?? ESTAMINA_MAX;
+      const data = JSON.parse(saved);
+      if (data.tipo !== 'manager' || !data.manager) return jug.estamina ?? ESTAMINA_MAX;
+      if (esEquipoManager(data, teamId)) {
+        return data.manager.estamina?.[jug.id] ?? jug.estamina ?? ESTAMINA_MAX;
+      }
+      return data.manager.temporada?.estaminaNPC?.[teamId]?.[jug.id] ?? jug.estamina ?? ESTAMINA_MAX;
+    } catch (e) {
+      return jug.estamina ?? ESTAMINA_MAX;
+    }
+  }
+
+  function aplicarEstamina(jug, teamId) {
+    if (!jug || !jug.id) return jug;
+    jug.estamina = leerEstamina(jug, teamId);
+    return jug;
+  }
+
+  function guardarEstaminaEnData(data, jugId, teamId, valor) {
+    const v = Math.max(0, Math.min(ESTAMINA_MAX, valor));
+    if (esEquipoManager(data, teamId)) {
+      if (!data.manager.estamina) data.manager.estamina = {};
+      data.manager.estamina[jugId] = v;
+    } else {
+      if (!data.manager.temporada) data.manager.temporada = {};
+      if (!data.manager.temporada.estaminaNPC) data.manager.temporada.estaminaNPC = {};
+      if (!data.manager.temporada.estaminaNPC[teamId]) data.manager.temporada.estaminaNPC[teamId] = {};
+      data.manager.temporada.estaminaNPC[teamId][jugId] = v;
+    }
+  }
+
+  function descontarEstaminaPartido(data, jugId, teamId) {
+    const actual = (esEquipoManager(data, teamId)
+      ? (data.manager.estamina?.[jugId] ?? ESTAMINA_MAX)
+      : (data.manager.temporada?.estaminaNPC?.[teamId]?.[jugId] ?? ESTAMINA_MAX));
+    const perdida = 15 + Math.floor(Math.random() * 11);
+    guardarEstaminaEnData(data, jugId, teamId, actual - perdida);
+  }
+
+  function onceIdsNPC(teamId) {
+    if (typeof PLANTILLAS_EQUIPO === 'undefined') return [];
+    const plantilla = PLANTILLAS_EQUIPO[teamId] || [];
+    const eq = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.find(e => e.id === teamId) : null;
+    const formacion = eq?.formation || '4-3-3';
+    return elegirMejorOnce(plantilla, formacion).once;
+  }
+
+  function descontarEstaminaEquipoNPC(data, teamId) {
+    const ids = onceIdsNPC(teamId);
+    ids.forEach(id => descontarEstaminaPartido(data, id, teamId));
+  }
+
+  function onceIdsDeManager(data) {
+    const t = data.manager.tactica;
+    return (t && Array.isArray(t.once)) ? t.once : [];
+  }
+
+  function recuperarJugadores(data, jugadosIds, descansoIds) {
+    [jugadosIds, descansoIds].forEach((arr, i) => {
+      (arr || []).forEach(id => {
+        if (!id) return;
+        const actual = data.manager.estamina?.[id] ?? ESTAMINA_MAX;
+        const ganancia = i === 0 ? 12 : 35;
+        data.manager.estamina = data.manager.estamina || {};
+        data.manager.estamina[id] = Math.min(ESTAMINA_MAX, actual + ganancia);
+      });
+    });
+  }
+
+  window.aplicarRecuperacionJornada = function (data) {
+    if (!data?.manager) return;
+    if (!data.manager.estamina) data.manager.estamina = {};
+    const jugados = onceIdsDeManager(data);
+    const plantilla = getPlantillaPorNombre(data.manager.equipo);
+    const descanso = plantilla.map(p => p.id).filter(id => !jugados.includes(id));
+    recuperarJugadores(data, jugados, descanso);
+
+    const t = data.manager.temporada;
+    if (t?.estaminaNPC) {
+      Object.keys(t.estaminaNPC).forEach(teamId => {
+        const ids = Object.keys(t.estaminaNPC[teamId]);
+        ids.forEach((id, i) => {
+          const ganancia = i < 11 ? 12 : 35;
+          t.estaminaNPC[teamId][id] = Math.min(ESTAMINA_MAX, t.estaminaNPC[teamId][id] + ganancia);
+        });
+      });
+    }
+  };
+
+  // ===== BANDEJA DE ENTRADA =====
+  let estadoBuzon = { mensajes: [] };
+
+  function getBuzon(data) {
+    if (!data?.manager) return estadoBuzon;
+    if (!data.manager.buzon) data.manager.buzon = { mensajes: [] };
+    if (!Array.isArray(data.manager.buzon.mensajes)) data.manager.buzon.mensajes = [];
+    estadoBuzon = data.manager.buzon;
+    return estadoBuzon;
+  }
+
+  function mensajeEgoBienvenida(equipoNombre) {
+    const pseudo = { manager: { equipo: equipoNombre } };
+    const liga = getLigaDeManager(pseudo);
+    const ligaNombre = liga?.nombre || 'la competición';
+    return {
+      id: 'm' + Date.now(),
+      remitente: 'Jinpachi Ego',
+      asunto: `Bienvenido a la ${ligaNombre}`,
+      cuerpo: `Manager: comienza la temporada en la ${ligaNombre}. Al frente de ${equipoNombre || 'tu equipo'}, tu trabajo será gestionar la plantilla, elegir el once y llevar al club a lo más alto. La competición ya está en marcha.`,
+      leido: false,
+      jornada: 0,
+      tipo: 'info'
+    };
+  }
+
+  window.generarAlertasBuzon = function (data) {
+    if (!data?.manager) return;
+    const buzon = getBuzon(data);
+    const jugadoresBajos = [];
+    Object.keys(data.manager.estamina || {}).forEach(id => {
+      if ((data.manager.estamina[id] ?? 100) < 50) {
+        const jug = getJugador(id, data.manager.equipo);
+        if (jug) jugadoresBajos.push({ id, nombre: jug.nombre, estamina: data.manager.estamina[id] });
+      }
+    });
+    if (jugadoresBajos.length === 0) return;
+
+    const nombres = jugadoresBajos.map(j => `${j.nombre} (${j.estamina})`).join(', ');
+    const jornada = data.manager.temporada?.jornadaActual ?? 0;
+    buzon.mensajes.push({
+      id: 'm' + Date.now() + Math.floor(Math.random() * 1000),
+      remitente: 'Cuerpo Médico',
+      asunto: 'Alerta: jugadores fatigados',
+      cuerpo: `Tras el último partido, los siguientes jugadores han bajado de 50 de estamina y corren peligro de lesión o bajada de stats: ${nombres}. Considera rotar la alineación.`,
+      leido: false,
+      jornada,
+      tipo: 'medico'
+    });
+    data.manager.buzon = buzon;
+  };
+
+  window.actualizarBuzonBadge = function () {
+    const badge = document.getElementById('buzon-badge');
+    if (!badge) return;
+    const noLeidos = (estadoBuzon?.mensajes || []).filter(m => !m.leido).length;
+    badge.textContent = String(noLeidos);
+    badge.style.display = noLeidos > 0 ? 'flex' : 'none';
+  };
+
+  window.abrirMensaje = function (id) {
+    const buzon = estadoBuzon;
+    const msg = (buzon?.mensajes || []).find(m => m.id === id);
+    if (!msg) return;
+    if (!msg.leido) {
+      msg.leido = true;
+      try {
+        const saved = localStorage.getItem('blue_lock_save');
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (data.manager) {
+            data.manager.buzon = buzon;
+            localStorage.setItem('blue_lock_save', JSON.stringify(data));
+            sincronizarSlotActivo();
+          }
+        }
+      } catch (e) { /* noop */ }
+      actualizarBuzonBadge();
+    }
+    const detalle = document.getElementById('buzon-detalle');
+    const lista = document.getElementById('buzon-lista');
+    if (lista) lista.style.display = 'none';
+    if (detalle) {
+      detalle.style.display = 'block';
+      detalle.innerHTML = `
+        <div class="buzon-detalle-card">
+          <div class="buzon-detalle-remitente">DE: ${msg.remitente}</div>
+          <div class="buzon-detalle-asunto">${msg.asunto}</div>
+          <div class="buzon-detalle-meta">Jornada ${msg.jornada} · ${msg.tipo === 'medico' ? '🚨 Alerta' : '📋 Información'}</div>
+          <div class="buzon-detalle-cuerpo">${msg.cuerpo}</div>
+          <button class="btn-bluelock" style="width:100%;justify-content:center;margin-top:10px;" onclick="volverListaBuzon()"><i class="fas fa-arrow-left"></i> VOLVER A LA BANDEJA</button>
+        </div>`;
+    }
+  };
+
+  window.volverListaBuzon = function () {
+    const lista = document.getElementById('buzon-lista');
+    const detalle = document.getElementById('buzon-detalle');
+    if (lista) lista.style.display = 'flex';
+    if (detalle) detalle.style.display = 'none';
+    renderBuzon();
+  };
+
+  window.renderBuzon = function () {
+    const cont = document.getElementById('buzon-lista');
+    if (!cont) return;
+    try {
+      const saved = localStorage.getItem('blue_lock_save');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.manager) getBuzon(data);
+      }
+    } catch (e) { /* noop */ }
+    const detalle = document.getElementById('buzon-detalle');
+    if (detalle) detalle.style.display = 'none';
+    cont.style.display = 'flex';
+
+    const mensajes = [...(estadoBuzon?.mensajes || [])].sort((a, b) => {
+      const na = a.leido ? 1 : 0;
+      const nb = b.leido ? 1 : 0;
+      if (na !== nb) return na - nb;
+      return 0;
+    });
+
+    if (mensajes.length === 0) {
+      cont.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">No tienes mensajes.</p>';
+      actualizarBuzonBadge();
+      return;
+    }
+
+    cont.innerHTML = mensajes.map(m => `
+      <div class="buzon-msg ${m.leido ? 'leido' : 'no-leido'}" onclick="abrirMensaje('${m.id}')">
+        <div class="buzon-msg-remitente">${m.remitente} ${m.leido ? '' : '<span class="buzon-dot"></span>'}</div>
+        <div class="buzon-msg-asunto">${m.asunto}</div>
+        <div class="buzon-msg-meta">Jornada ${m.jornada} · ${m.tipo}</div>
+      </div>`).join('');
+    actualizarBuzonBadge();
+  };
 
   // Cargar Guardado Previsto
   function cargarEstado() {
@@ -121,121 +443,98 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let tsState = { equipoId: null, equipoNombre: '' };
   let previewPlantillaData = null;
-  let divActual = 'primera';
-
-  const NEO_EQUIPOS = [
-    { id: "bastard_munchen", nombre: "Bastard München", bandera: "🇩🇪", pais: "Alemania", escudo: "assets/logos/bastard_munchen.png", nivel: 4, presupuesto: 7000 },
-    { id: "berserk_dortmund", nombre: "Berserk Dortmund", bandera: "🇩🇪", pais: "Alemania", escudo: "assets/logos/berserk_dortmund.png", nivel: 3, presupuesto: 5800 },
-    { id: "rpb", nombre: "RPB", bandera: "🇩🇪", pais: "Alemania", escudo: "assets/logos/rpb.png", nivel: 3, presupuesto: 5100 },
-    { id: "vesper_bremen", nombre: "Vesper Bremen", bandera: "🇩🇪", pais: "Alemania", escudo: "assets/logos/vesper_bremen.png", nivel: 2, presupuesto: 4800 },
-    { id: "manshine_city", nombre: "Manshine City", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", pais: "Inglaterra", escudo: "assets/logos/manshine_city.png", nivel: 4, presupuesto: 9000 },
-    { id: "arsenaly", nombre: "Arsenaly", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", pais: "Inglaterra", escudo: "assets/logos/arsenaly.png", nivel: 3, presupuesto: 6200 },
-    { id: "miracleicester", nombre: "Miracleicester", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", pais: "Inglaterra", escudo: "assets/logos/miracleicester.png", nivel: 3, presupuesto: 5400 },
-    { id: "manshine_united", nombre: "Manshine United", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", pais: "Inglaterra", escudo: "assets/logos/manshine_united.png", nivel: 3, presupuesto: 6000 },
-    { id: "chelblue", nombre: "Chelblue", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", pais: "Inglaterra", escudo: "assets/logos/chelblue.png", nivel: 3, presupuesto: 5800 },
-    { id: "livers", nombre: "Livers", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", pais: "Inglaterra", escudo: "assets/logos/livers.png", nivel: 3, presupuesto: 5400 },
-    { id: "fc_barcha", nombre: "FC Barcha", bandera: "🇪🇸", pais: "España", escudo: "assets/logos/barcha.png", nivel: 4, presupuesto: 7200 },
-    { id: "chicorid", nombre: "Chicorid", bandera: "🇪🇸", pais: "España", escudo: "assets/logos/chicorid.png", nivel: 3, presupuesto: 5000 },
-    { id: "re_al", nombre: "Re Al", bandera: "🇪🇸", pais: "España", escudo: "assets/logos/real_bastard.png", nivel: 4, presupuesto: 7500 },
-    { id: "ubers_fc", nombre: "Ubers FC", bandera: "🇮🇹", pais: "Italia", escudo: "assets/logos/ubers.png", nivel: 4, presupuesto: 6800 },
-    { id: "bolos", nombre: "Bolos", bandera: "🇮🇹", pais: "Italia", escudo: "assets/logos/bolos.png", nivel: 3, presupuesto: 5400 },
-    { id: "ac_milanoia", nombre: "AC Milanoia", bandera: "🇮🇹", pais: "Italia", escudo: "assets/logos/ac_milanoia.png", nivel: 3, presupuesto: 5600 },
-    { id: "napolin", nombre: "Napolin", bandera: "🇮🇹", pais: "Italia", escudo: "assets/logos/napolin.png", nivel: 3, presupuesto: 5500 },
-    { id: "palmaro", nombre: "Palmaro", bandera: "🇮🇹", pais: "Italia", escudo: "assets/logos/palmaro.png", nivel: 3, presupuesto: 5200 },
-    { id: "paris_x_gen", nombre: "Paris X Gen", bandera: "🇫🇷", pais: "Francia", escudo: "assets/logos/paris_x_gen.png", nivel: 4, presupuesto: 7600 },
-    { id: "marseille", nombre: "Marseille", bandera: "🇫🇷", pais: "Francia", escudo: "assets/logos/marseille.png", nivel: 3, presupuesto: 5500 },
-    { id: "monao", nombre: "Monao", bandera: "🇫🇷", pais: "Francia", escudo: "assets/logos/monao.png", nivel: 3, presupuesto: 5300 },
-    { id: "nandatot", nombre: "Nandatot", bandera: "🇫🇷", pais: "Francia", escudo: "assets/logos/nandatot.png", nivel: 2, presupuesto: 4600 },
-    { id: "bl_eleven", nombre: "Blue Lock Eleven", bandera: "🇯🇵", pais: "Blue Lock", escudo: "assets/logos/bl_eleven.png", nivel: 5, presupuesto: 8000, division: "historia" },
-    { id: "team_z", nombre: "Equipo Z", bandera: "🇯🇵", pais: "Japón", escudo: "", nivel: 3, presupuesto: 4000 },
-    { id: "team_v", nombre: "Equipo V", bandera: "🇯🇵", pais: "Japón", escudo: "", nivel: 2, presupuesto: 3000 },
-    { id: "team_w", nombre: "Equipo W", bandera: "🇯🇵", pais: "Japón", escudo: "", nivel: 2, presupuesto: 3000 },
-    { id: "urawa_rubies", nombre: "Urawa Rubies", bandera: "🇯🇵", pais: "Japón", escudo: "assets/logos/urawa_rubies.png", nivel: 3, presupuesto: 5500 },
-    { id: "kawasaki_breakerz", nombre: "Kawasaki Breakerz", bandera: "🇯🇵", pais: "Japón", escudo: "assets/logos/kawasaki_breakerz.png", nivel: 3, presupuesto: 5300 },
-    { id: "roar_kumamoto", nombre: "Roar Kumamoto", bandera: "🇯🇵", pais: "Japón", escudo: "assets/logos/roar_kumamoto.png", nivel: 2, presupuesto: 4000 },
-    { id: "dosankoro_sapporo", nombre: "Dosankoro Sapporo", bandera: "🇯🇵", pais: "Japón", escudo: "assets/logos/dosankoro_sapporo.png", nivel: 2, presupuesto: 3800 },
-    { id: "sunflame_hiroshima", nombre: "Sunflame Hiroshima", bandera: "🇯🇵", pais: "Japón", escudo: "", nivel: 2, presupuesto: 4200 },
-    { id: "gohonzon_kamakura", nombre: "Gohonzon Kamakura", bandera: "🇯🇵", pais: "Japón", escudo: "", nivel: 2, presupuesto: 3600 },
-    { id: "jubilee_iwata", nombre: "Jubilee Iwata", bandera: "🇯🇵", pais: "Japón", escudo: "", nivel: 2, presupuesto: 3500 },
-    { id: "fc_portimion", nombre: "FC Portimion", bandera: "🇵🇹", pais: "Portugal", escudo: "assets/logos/FC Portimion.png", nivel: 3, presupuesto: 4800 },
-    { id: "ajajax", nombre: "Ajajax", bandera: "🇳🇱", pais: "Holanda", escudo: "assets/logos/ajajax.png", nivel: 3, presupuesto: 5200 },
-    { id: "kroningen", nombre: "Kroningen", bandera: "🇳🇱", pais: "Holanda", escudo: "", nivel: 2, presupuesto: 4200 },
-    { id: "celticoss", nombre: "Celticoss", bandera: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", pais: "Escocia", escudo: "assets/logos/celticoss.png", nivel: 3, presupuesto: 5000 }
-  ];
 
   window.tsInit = function () {
     tsState = { equipoId: null, equipoNombre: '' };
-    divActual = 'primera';
     const nombreInput = document.getElementById('input-nombre-manager');
     if (nombreInput) nombreInput.value = '';
     document.getElementById('ts-selected-name').style.display = 'none';
-    document.getElementById('btn-submit-manager').disabled = true;
-    renderDivisionUI();
-    renderNEOEquipos();
+    actualizarEstadoIniciarCarrera();
+    renderPaisesLista();
   };
 
-  function renderDivisionUI() {
-    document.querySelectorAll('.div-tab').forEach(t => {
-      t.classList.toggle('active', t.dataset.div === divActual);
-    });
-    const sub = document.querySelector('.neo-league-sub');
-    if (sub && typeof DIVISIONES !== 'undefined') {
-      sub.textContent = DIVISIONES[divActual]?.nombre || '';
-    }
+  function actualizarEstadoIniciarCarrera() {
+    const btn = document.getElementById('btn-submit-manager');
+    if (!btn) return;
+    const nombre = (document.getElementById('input-nombre-manager')?.value || '').trim();
+    btn.disabled = !(nombre && tsState.equipoId);
   }
 
-  function renderNEOEquipos() {
-    const grid = document.getElementById('ts-equipos');
-    grid.innerHTML = '';
-    const divKeys = DIVISIONES[divActual]?.equipos || [];
-    NEO_EQUIPOS.forEach(eq => {
-      if (!divKeys.includes(eq.id) && divKeys.length > 0) return;
-      const escudoHtml = eq.escudo
-        ? `<img src="${eq.escudo}" class="ts-emblem-img" onerror="this.onerror=null;this.style.display='none'" alt="${eq.nombre}">`
-        : `<i class="fas fa-shield-halved"></i>`;
-      const stars = '⭐'.repeat(eq.nivel);
-      grid.innerHTML += `<div class="ts-card ts-equipo ${tsState.equipoId === eq.id ? 'selected' : ''}" onclick="tsSeleccionarEquipo('${eq.id}')">
-        <span class="ts-emblem">${escudoHtml}</span>
-        <span class="ts-name">${eq.nombre}</span>
-        <span class="ts-flag-small">${eq.bandera} ${eq.pais}</span>
-        <span class="ts-meta">${stars} 🪙${eq.presupuesto}</span>
-        <button type="button" class="ts-ver-plantilla" onclick="event.stopPropagation(); tsVerPlantilla('${eq.id}')"><i class="fas fa-users"></i> VER PLANTILLA</button>
-      </div>`;
+  function renderPaisesLista() {
+    const cont = document.getElementById('ts-selector-arbol');
+    cont.innerHTML = '';
+    if (typeof CONFIG_PAISES === 'undefined' || CONFIG_PAISES.length === 0) return;
+    CONFIG_PAISES.forEach(pais => {
+      const totalEq = pais.ligas.reduce((a, l) => a + l.equipos.length, 0);
+      const section = document.createElement('div');
+      section.className = 'ts-pais';
+      section.innerHTML = `
+        <div class="ts-pais-header" onclick="tsSeleccionarPais('${pais.id}')">
+          <span class="ts-pais-bandera">${pais.bandera}</span>
+          <span class="ts-pais-nombre">${pais.nombre}</span>
+          <span class="ts-pais-count">${totalEq} equipos</span>
+          <span class="ts-pais-chevron"><i class="fas fa-chevron-right"></i></span>
+        </div>`;
+      cont.appendChild(section);
     });
+  }
+
+  window.tsSeleccionarPais = function (paisId) {
+    const pais = (typeof CONFIG_PAISES !== 'undefined' && CONFIG_PAISES.length)
+      ? CONFIG_PAISES.find(p => p.id === paisId) : null;
+    if (!pais) return;
+    document.getElementById('ts-pais-titulo').textContent = `${pais.bandera} ${pais.nombre}`;
+    const totalEq = pais.ligas.reduce((a, l) => a + l.equipos.length, 0);
+    document.getElementById('ts-pais-sub').textContent = `${pais.ligas.length} ${pais.ligas.length === 1 ? 'liga' : 'ligas'} · ${totalEq} ${totalEq === 1 ? 'equipo' : 'equipos'}`;
+    const cont = document.getElementById('ts-ligas-container');
+    cont.innerHTML = pais.ligas.map(liga => `
+      <div class="ts-liga">
+        <div class="ts-liga-header">⚽ ${liga.nombre} <span class="ts-liga-count">${liga.equipos.length}</span></div>
+        <div class="ts-grid">${liga.equipos.map(eq => cardEquipoHtml(eq)).join('')}</div>
+      </div>`).join('');
+    showScreen('screen-pais-ligas');
+  };
+
+  function estrellasTexto(stars) {
+    const n = Number(stars) || 0;
+    const enteras = Math.floor(n);
+    const media = (n % 1) >= 0.5;
+    return '⭐'.repeat(enteras) + (media ? '½' : '');
+  }
+
+  function cardEquipoHtml(eq) {
+    const escudoHtml = eq.escudo
+      ? `<img src="${eq.escudo}" class="ts-emblem-img" onerror="this.onerror=null;this.style.display='none'" alt="${eq.name}">`
+      : htmlEscudoEquipo(eq.name);
+    const grl = typeof eq.grl === 'number' ? `GRL ${eq.grl}` : '';
+    const stars = estrellasTexto(eq.stars);
+    return `<div class="ts-card ts-equipo ${tsState.equipoId === eq.id ? 'selected' : ''}" onclick="tsSeleccionarEquipo('${eq.id}')">
+      <span class="ts-emblem">${escudoHtml}</span>
+      <span class="ts-name">${eq.name}</span>
+      <span class="ts-meta">${stars} ${formatearYenes(eq.budget || 0)}</span>
+      ${grl ? `<span class="ts-grl">${grl}</span>` : ''}
+      <button type="button" class="ts-ver-plantilla" onclick="event.stopPropagation(); tsVerPlantilla('${eq.id}')"><i class="fas fa-users"></i> VER PLANTILLA</button>
+    </div>`;
   }
 
   window.tsSeleccionarEquipo = function (equipoId) {
     const eq = NEO_EQUIPOS.find(e => e.id === equipoId);
     if (!eq) return;
     tsState.equipoId = eq.id;
-    tsState.equipoNombre = eq.nombre;
+    tsState.equipoNombre = eq.name;
     document.querySelectorAll('.ts-card.ts-equipo').forEach(c => c.classList.remove('selected'));
     const card = document.querySelector(`.ts-card.ts-equipo[onclick*="'${equipoId}'"]`);
     if (card) card.classList.add('selected');
-    document.getElementById('ts-equipo-label').textContent = `${eq.nombre} 🪙${eq.presupuesto} ⭐${eq.nivel}`;
+    const grl = typeof eq.grl === 'number' ? ` · GRL ${eq.grl}` : '';
+    document.getElementById('ts-equipo-label').textContent = `${eq.name}${grl} ${formatearYenes(eq.budget)} ${estrellasTexto(eq.stars)}`;
     document.getElementById('ts-selected-name').style.display = 'block';
-    document.getElementById('btn-submit-manager').disabled = false;
-  };
-
-  window.cambiarDivision = function (div) {
-    divActual = div;
-    document.querySelectorAll('.div-tab').forEach(t => {
-      t.classList.toggle('active', t.dataset.div === div);
-    });
-    const sub = document.querySelector('.neo-league-sub');
-    if (sub && typeof DIVISIONES !== 'undefined') {
-      sub.textContent = DIVISIONES[div]?.nombre || '';
-    }
-    document.getElementById('ts-selected-name').style.display = 'none';
-    document.getElementById('btn-submit-manager').disabled = true;
-    tsState.equipoId = null;
-    renderNEOEquipos();
+    actualizarEstadoIniciarCarrera();
   };
 
   window.tsVerPlantilla = function (equipoId) {
     const eq = NEO_EQUIPOS.find(e => e.id === equipoId);
     if (!eq) return;
-    abrirPlantillaEquipo(eq.nombre, getPlantillaEquipo(eq.nombre));
+    abrirPlantillaEquipo(eq.name, getPlantillaEquipo(eq.name));
   };
 
   window.verPlantillaClasificacion = function (teamId) {
@@ -278,23 +577,23 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   let navHistory = [];
+  function activarPantalla(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(screenId);
+    if (target) target.classList.add('active');
+  }
+
   window.showScreen = function (screenId) {
     const current = document.querySelector('.screen.active');
     if (current && current.id !== screenId) {
       navHistory.push(current.id);
     }
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    const target = document.getElementById(screenId);
-    if (target) target.classList.add('active');
+    activarPantalla(screenId);
   };
 
   window.goBack = function () {
     const prev = navHistory.pop();
-    if (prev && document.getElementById(prev)) {
-      showScreen(prev);
-    } else {
-      showScreen('screen-main');
-    }
+    activarPantalla(prev && document.getElementById(prev) ? prev : 'screen-main');
   };
 
   // Renderizar Tienda
@@ -573,6 +872,8 @@ document.addEventListener('DOMContentLoaded', () => {
     gameState.monedas = data.monedas ?? gameState.monedas;
     gameState.gemas = data.gemas ?? gameState.gemas;
     actualizarMonedasUI();
+    if (data.manager?.buzon) getBuzon(data);
+    actualizarBuzonBadge();
 
     document.getElementById('hub-nombre').textContent = data.jugador?.nombre || data.manager?.nombre || '—';
     document.getElementById('hub-equipo').textContent = data.jugador ? data.jugador.pais : data.manager?.equipo || '—';
@@ -602,11 +903,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (span) span.textContent = 'PLANTILLA';
       }
       const m = data.manager;
-      const presupuesto = typeof m.presupuesto === 'number' ? m.presupuesto : (NEO_EQUIPOS.find(e => e.nombre === m.equipo)?.presupuesto ?? 0);
+      const presupuesto = typeof m.presupuesto === 'number' ? m.presupuesto : (NEO_EQUIPOS.find(e => e.name === m.equipo)?.budget ?? 0);
       const numJug = getPlantillaEquipo(m.equipo).length;
       const semana = m.semana || 0;
       statsEl.innerHTML = `
-        <span><i class="fas fa-coins"></i> Presupuesto: 🪙 ${presupuesto.toLocaleString('es-ES')}</span>
+        <span><i class="fas fa-coins"></i> Presupuesto: ${formatearYenes(presupuesto)}</span>
         <span><i class="fas fa-users"></i> Plantilla: ${numJug} jug.</span>
         <span><i class="fas fa-calendar-week"></i> Semana: ${semana}</span>
         <span><i class="fas fa-store"></i> Fichajes: ${(m.fichajes || []).length}</span>
@@ -726,6 +1027,24 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPlantillaContent();
   };
 
+  function calcularGrlJugador(jug) {
+    if (!jug) return 0;
+    if (jug.grl) return jug.grl;
+    if (jug.posicion === 'POR') {
+      return Math.round(((jug.div || 60) + (jug.han || 60) + (jug.kic || 60) + (jug.ref || 60) + (jug.spd || 60) + (jug.pos || 60)) / 6);
+    }
+    return Math.round((jug.tiro + jug.pase + jug.regate + jug.defensa + (jug.pac || 60) + (jug.phy || 60)) / 6);
+  }
+
+  function statOrdenable(jug, key) {
+    if (jug.posicion === 'POR') {
+      const map = { pac: 'spd', defensa: 'div', phy: 'ref', tiro: 'kic', pase: 'kic', regate: null };
+      const k = map[key] ?? key;
+      return k ? (jug[k] ?? 0) : 0;
+    }
+    return jug[key] ?? 0;
+  }
+
   function renderPlantillaContent() {
     let jugadores;
     const grid = document.getElementById('plantilla-grid');
@@ -747,11 +1066,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (plantillaSort.by === 'nombre' || plantillaSort.by === 'nacionalidad') {
         va = (a[plantillaSort.by] || '').toLowerCase(); vb = (b[plantillaSort.by] || '').toLowerCase();
       } else if (plantillaSort.by === 'grl') {
-        va = a.grl || Math.round((a.tiro + a.pase + a.regate + a.defensa + (a.pac||60) + (a.phy||60)) / 6);
-        vb = b.grl || Math.round((b.tiro + b.pase + b.regate + b.defensa + (b.pac||60) + (b.phy||60)) / 6);
+        va = calcularGrlJugador(a); vb = calcularGrlJugador(b);
       } else {
-        va = a[plantillaSort.by] ?? 0;
-        vb = b[plantillaSort.by] ?? 0;
+        va = statOrdenable(a, plantillaSort.by);
+        vb = statOrdenable(b, plantillaSort.by);
       }
       if (typeof va === 'string') return plantillaSort.asc ? va.localeCompare(vb) : vb.localeCompare(va);
       return plantillaSort.asc ? va - vb : vb - va;
@@ -777,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.getEnfoqueStats = function (posicion) {
     const DEF = ['DFC', 'LD', 'LI', 'CAD', 'CAI'];
     const MED = ['MCD', 'MC', 'MCO', 'MI', 'MD'];
-    if (posicion === 'POR') return ['def', 'pac'];
+    if (posicion === 'POR') return ['div', 'ref'];
     if (DEF.includes(posicion)) return ['def', 'pac'];
     if (MED.includes(posicion)) return ['pas', 'dri'];
     return ['sho', 'dri'];
@@ -855,13 +1173,23 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const statsBase = jug.stats || {};
-      const pac = typeof rec.stats.pac === 'number' ? rec.stats.pac : (statsBase.pac ?? 60);
-      const sho = typeof rec.stats.sho === 'number' ? rec.stats.sho : (statsBase.sho ?? 60);
-      const pas = typeof rec.stats.pas === 'number' ? rec.stats.pas : (statsBase.pas ?? 60);
-      const dri = typeof rec.stats.dri === 'number' ? rec.stats.dri : (statsBase.dri ?? 60);
-      const def = typeof rec.stats.def === 'number' ? rec.stats.def : (statsBase.def ?? 60);
-      const phy = typeof rec.stats.phy === 'number' ? rec.stats.phy : (statsBase.phy ?? 60);
-      rec.grl = Math.round((pac + sho + pas + dri + def + phy) / 6);
+      if (jug.posicion === 'POR') {
+        const div = typeof rec.stats.div === 'number' ? rec.stats.div : (statsBase.div ?? 60);
+        const han = typeof rec.stats.han === 'number' ? rec.stats.han : (statsBase.han ?? 60);
+        const kic = typeof rec.stats.kic === 'number' ? rec.stats.kic : (statsBase.kic ?? 60);
+        const ref = typeof rec.stats.ref === 'number' ? rec.stats.ref : (statsBase.ref ?? 60);
+        const spd = typeof rec.stats.spd === 'number' ? rec.stats.spd : (statsBase.spd ?? 60);
+        const pos = typeof rec.stats.pos === 'number' ? rec.stats.pos : (statsBase.pos ?? 60);
+        rec.grl = Math.round((div + han + kic + ref + spd + pos) / 6);
+      } else {
+        const pac = typeof rec.stats.pac === 'number' ? rec.stats.pac : (statsBase.pac ?? 60);
+        const sho = typeof rec.stats.sho === 'number' ? rec.stats.sho : (statsBase.sho ?? 60);
+        const pas = typeof rec.stats.pas === 'number' ? rec.stats.pas : (statsBase.pas ?? 60);
+        const dri = typeof rec.stats.dri === 'number' ? rec.stats.dri : (statsBase.dri ?? 60);
+        const def = typeof rec.stats.def === 'number' ? rec.stats.def : (statsBase.def ?? 60);
+        const phy = typeof rec.stats.phy === 'number' ? rec.stats.phy : (statsBase.phy ?? 60);
+        rec.grl = Math.round((pac + sho + pas + dri + def + phy) / 6);
+      }
       item.grl = rec.grl;
 
       data.manager.entrenamiento[jug.id] = rec;
@@ -925,11 +1253,12 @@ document.addEventListener('DOMContentLoaded', () => {
         : '<i class="fas fa-bolt"></i> Entrenamiento disponible esta semana (GRATIS, 1 vez). Toca un jugador para añadirlo y elige sus stats.'}</div>`;
 
     jugadores.forEach(jug => {
-      const grl = jug.grl || Math.round((jug.tiro + jug.pase + jug.regate + jug.defensa + (jug.pac || 60) + (jug.phy || 60)) / 6);
+      const grl = calcularGrlJugador(jug);
       const sel = entrenarSeleccion.get(jug.id);
       const activo = !!sel;
       const foto = jug.foto || 'assets/players/default.png';
-      const statsChips = ['pac', 'sho', 'pas', 'dri', 'def', 'phy'].map(k => {
+      const statsKeys = jug.posicion === 'POR' ? ['div', 'han', 'kic', 'ref', 'spd', 'pos'] : ['pac', 'sho', 'pas', 'dri', 'def', 'phy'];
+      const statsChips = statsKeys.map(k => {
         const val = jug.stats?.[k] ?? 60;
         const xp = data.manager.entrenamiento?.[jug.id]?.xp?.[k] || 0;
         const req = getXPRequired(val);
@@ -1030,7 +1359,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function nombreEquipoPorId(teamId) {
     if (typeof NEO_EQUIPOS !== 'undefined') {
       const eq = NEO_EQUIPOS.find(e => e.id === teamId);
-      if (eq) return eq.nombre;
+      if (eq) return eq.name;
     }
     if (typeof PLANTILLAS_EQUIPO !== 'undefined') {
       const plantilla = PLANTILLAS_EQUIPO[teamId];
@@ -1047,6 +1376,29 @@ document.addEventListener('DOMContentLoaded', () => {
     return '';
   }
 
+  function escudoEquipoPorNombre(nombre) {
+    if (nombre && typeof NEO_EQUIPOS !== 'undefined') {
+      const eq = NEO_EQUIPOS.find(e => e.name === nombre);
+      if (eq && eq.escudo) return eq.escudo;
+    }
+    return '';
+  }
+
+  function htmlEscudoEquipo(nombre) {
+    const escudo = escudoEquipoPorNombre(nombre);
+    if (escudo) return `<img src="${escudo}" onerror="this.onerror=null;this.outerHTML='<i class=&quot;fas fa-shield-halved&quot;></i>';" alt="${nombre || ''}">`;
+    let teamId = null;
+    if (nombre && typeof NOMBRE_EQUIPO !== 'undefined') {
+      for (const k of Object.keys(NOMBRE_EQUIPO)) {
+        if (NOMBRE_EQUIPO[k] === nombre) { teamId = k; break; }
+      }
+    }
+    const col = (teamId && typeof COLORES_EQUIPOS !== 'undefined' && COLORES_EQUIPOS[teamId])
+      ? COLORES_EQUIPOS[teamId]
+      : { p: '#334466', s: '#667799', forma: 'circulo' };
+    return `<span class="clasificacion-logo-badge forma-${col.forma || 'circulo'}" style="background:linear-gradient(135deg,${col.p},${col.s})">${inicialesEquipo(nombre)}</span>`;
+  }
+
   function inicialesEquipo(nombre) {
     if (!nombre) return '??';
     const palabras = nombre.split(' ').filter(w => /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(w));
@@ -1054,24 +1406,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return iniciales || nombre.slice(0, 2).toUpperCase();
   }
 
-  window.renderClasificacion = function () {
-    const container = document.getElementById('clasificacion-tabla');
-    if (!container || typeof DIVISIONES === 'undefined') return;
-
-    document.querySelectorAll('#clasificacion-tabs .div-tab').forEach(t => {
-      t.classList.toggle('active', t.dataset.div === clasificacionDiv);
-    });
-
-    const div = DIVISIONES[clasificacionDiv];
-    if (!div) return;
-    const equipos = div.equipos || [];
-
-    const filas = equipos.map(teamId => {
-      const nombre = nombreEquipoPorId(teamId);
-      const escudo = escudoEquipoPorId(teamId);
-      const prev = (gameState.standings || []).find(s => s.nombre === nombre) || {};
+  function tablaLigaHtml(equipos) {
+    const clasif = gameState.estadoTemporada?.clasificacion || {};
+    const filas = equipos.map(eq => {
+      const nombre = nombreEquipoPorId(eq.id);
+      const escudo = escudoEquipoPorId(eq.id);
+      const prev = clasif[eq.id] || {};
       return {
-        teamId,
+        teamId: eq.id,
         nombre,
         escudo,
         pj: prev.pj || 0, pg: prev.pg || 0, pe: prev.pe || 0, pp: prev.pp || 0,
@@ -1084,8 +1426,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return (b.gf - b.gc) - (a.gf - a.gc);
     });
 
-    let html = `<div class="clasificacion-division"><i class="fas fa-shield-halved"></i> ${div.nombre}</div>`;
-    html += '<table class="clasificacion-table"><thead><tr><th>#</th><th>EQUIPO</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>PTS</th></tr></thead><tbody>';
+    let html = '<table class="clasificacion-table"><thead><tr><th>#</th><th>EQUIPO</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>GF</th><th>GC</th><th>PTS</th></tr></thead><tbody>';
     filas.forEach((eq, i) => {
       const posCls = i === 0 ? 'pos-1' : i === 1 ? 'pos-2' : i === 2 ? 'pos-3' : '';
       let escudoHtml;
@@ -1103,13 +1444,124 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<tr class="${posCls}" onclick="verPlantillaClasificacion('${eq.teamId}')"><td>${i + 1}.</td><td class="clasificacion-equipo"><div class="${logoCls}">${escudoHtml}</div><span>${eq.nombre}</span></td><td>${eq.pj}</td><td>${eq.pg}</td><td>${eq.pe}</td><td>${eq.pp}</td><td>${eq.gf}</td><td>${eq.gc}</td><td class="clasificacion-pts">${eq.pts}</td></tr>`;
     });
     html += '</tbody></table>';
+    return html;
+  }
 
-    container.innerHTML = html;
+  window.renderClasificacion = function () {
+    const container = document.getElementById('clasificacion-arbol');
+    if (!container || typeof CONFIG_PAISES === 'undefined') return;
+
+    if (!gameState.estadoTemporada) {
+      try {
+        const saved = localStorage.getItem('blue_lock_save');
+        if (saved) {
+          const d = JSON.parse(saved);
+          if (d.tipo === 'manager' && d.manager?.temporada) {
+            gameState.estadoTemporada = d.manager.temporada;
+          }
+        }
+      } catch (e) { /* noop */ }
+    }
+
+    container.innerHTML = CONFIG_PAISES.map(pais => {
+      const totalEq = pais.ligas.reduce((a, l) => a + l.equipos.length, 0);
+      const abierto = clasificacionPaisesAbiertos.has(pais.id);
+      const bodyHtml = pais.ligas.map(liga => `
+        <div class="clas-liga">
+          <div class="clas-liga-header">⚽ ${liga.nombre} <span class="clas-liga-count">${liga.equipos.length}</span></div>
+          ${tablaLigaHtml(liga.equipos)}
+        </div>`).join('');
+      return `
+        <div class="clas-pais${abierto ? ' open' : ''}">
+          <div class="clas-pais-header" onclick="toggleClasificacionPais('${pais.id}')">
+            <span class="clas-pais-bandera">${pais.bandera}</span>
+            <span class="clas-pais-nombre">${pais.nombre}</span>
+            <span class="clas-pais-count">${pais.ligas.length} ${pais.ligas.length === 1 ? 'liga' : 'ligas'} · ${totalEq} ${totalEq === 1 ? 'equipo' : 'equipos'}</span>
+            <span class="clas-pais-chevron"><i class="fas fa-chevron-down"></i></span>
+          </div>
+          <div class="clas-pais-body">${bodyHtml}</div>
+        </div>`;
+    }).join('');
   };
 
-  window.cambiarClasificacionDiv = function (div) {
-    clasificacionDiv = div;
+  window.toggleClasificacionPais = function (paisId) {
+    if (clasificacionPaisesAbiertos.has(paisId)) clasificacionPaisesAbiertos.delete(paisId);
+    else clasificacionPaisesAbiertos.add(paisId);
     renderClasificacion();
+  };
+
+  function resultadosDeJornada(temporada, jornadaNum) {
+    const registro = (temporada.partidosJugados || []).find(r => r.jornada === jornadaNum);
+    if (!registro) return null;
+    const partidos = [{ local: registro.local, visit: registro.visit, gl: registro.gl, gv: registro.gv }];
+    (registro.fondo || []).forEach(f => partidos.push({ local: f.l, visit: f.v, gl: f.gl, gv: f.gv }));
+    return partidos;
+  }
+
+  window.renderCalendario = function () {
+    const container = document.getElementById('calendario-lista');
+    const ligaEl = document.getElementById('calendario-liga');
+    if (!container) return;
+    container.innerHTML = '';
+    if (ligaEl) ligaEl.textContent = '';
+
+    const saved = localStorage.getItem('blue_lock_save');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    const { temporada, liga } = getTemporada(data);
+    if (!liga) return;
+
+    const ligaKey = liga.nombre;
+    const eqManager = NEO_EQUIPOS.find(e => e.name === data.manager.equipo);
+    if (!eqManager) return;
+    const calendario = temporada.calendario[ligaKey];
+    if (!calendario) return;
+
+    if (ligaEl) ligaEl.textContent = `${liga.nombre} · JORNADA ${Math.min(temporada.jornadaActual + 1, calendario.length)}/${calendario.length}`;
+
+    let html = '';
+    calendario.forEach((jornada, idx) => {
+      const jornadaNum = idx + 1;
+      const jugada = idx < temporada.jornadaActual;
+      const esActual = idx === temporada.jornadaActual;
+      const resultados = resultadosDeJornada(temporada, jornadaNum);
+
+      let body = '';
+      jornada.forEach(([l, v]) => {
+        const esPropio = l === eqManager.id || v === eqManager.id;
+        const localHtml = `<span class="calendario-local"><span class="calendario-logo">${escudoHtmlPartido(l)}</span><span class="calendario-nombre">${nombreEquipoPorId(l)}</span></span>`;
+        const visitHtml = `<span class="calendario-visit"><span class="calendario-nombre">${nombreEquipoPorId(v)}</span><span class="calendario-logo">${escudoHtmlPartido(v)}</span></span>`;
+        let texto;
+        if (jugada && resultados) {
+          const r = resultados.find(p => (p.local === l && p.visit === v) || (p.local === v && p.visit === l));
+          if (r) {
+            texto = `${localHtml}
+              <span class="calendario-resultado">${r.gl} - ${r.gv}</span>
+              ${visitHtml}`;
+          } else {
+            texto = `${localHtml}
+              <span class="calendario-resultado">—</span>
+              ${visitHtml}`;
+          }
+        } else {
+          texto = `${localHtml}
+            <span class="calendario-resultado">VS</span>
+            ${visitHtml}`;
+        }
+        body += `<div class="calendario-partido${esPropio ? ' propio' : ''}">${texto}</div>`;
+      });
+
+      const badge = jugada ? '<span class="calendario-badge jugado">JUGADO</span>'
+        : esActual ? '<span class="calendario-badge actual">ACTUAL</span>'
+        : '<span class="calendario-badge pendiente">PENDIENTE</span>';
+
+      html += `<div class="calendario-jornada${esActual ? ' actual' : ''}">
+        <div class="calendario-jornada-header">JORNADA ${jornadaNum} ${badge}</div>
+        ${body}
+      </div>`;
+    });
+    container.innerHTML = html;
   };
 
   const FORMACIONES_POS = {
@@ -1150,6 +1602,52 @@ document.addEventListener('DOMContentLoaded', () => {
       { y: 75, slots: [{x:22, pos:"DFC"},{x:50, pos:"DFC"},{x:78, pos:"DFC"}] },
       { y: 48, slots: [{x:18, pos:"MI"},{x:42, pos:"MC"},{x:58, pos:"MC"},{x:82, pos:"MD"}] },
       { y: 17, slots: [{x:20, pos:"EI"},{x:50, pos:"DC"},{x:80, pos:"ED"}] }
+    ],
+    "5-2-3": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 78, slots: [{x:10, pos:"CAD"},{x:30, pos:"DFC"},{x:50, pos:"DFC"},{x:70, pos:"DFC"},{x:90, pos:"CAI"}] },
+      { y: 52, slots: [{x:35, pos:"MCD"},{x:65, pos:"MCD"}] },
+      { y: 19, slots: [{x:20, pos:"EI"},{x:50, pos:"DC"},{x:80, pos:"ED"}] }
+    ],
+    "4-3-1-2": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 77, slots: [{x:15, pos:"LI"},{x:35, pos:"DFC"},{x:65, pos:"DFC"},{x:85, pos:"LD"}] },
+      { y: 55, slots: [{x:25, pos:"MC"},{x:50, pos:"MCD"},{x:75, pos:"MC"}] },
+      { y: 38, slots: [{x:50, pos:"MCO"}] },
+      { y: 16, slots: [{x:38, pos:"DC"},{x:62, pos:"DC"}] }
+    ],
+    "5-3-2": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 78, slots: [{x:10, pos:"CAD"},{x:30, pos:"DFC"},{x:50, pos:"DFC"},{x:70, pos:"DFC"},{x:90, pos:"CAI"}] },
+      { y: 52, slots: [{x:22, pos:"MC"},{x:50, pos:"MCD"},{x:78, pos:"MC"}] },
+      { y: 18, slots: [{x:38, pos:"DC"},{x:62, pos:"DC"}] }
+    ],
+    "3-4-2-1": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 75, slots: [{x:22, pos:"DFC"},{x:50, pos:"DFC"},{x:78, pos:"DFC"}] },
+      { y: 52, slots: [{x:12, pos:"MI"},{x:35, pos:"MC"},{x:65, pos:"MC"},{x:88, pos:"MD"}] },
+      { y: 34, slots: [{x:38, pos:"SD"},{x:62, pos:"SD"}] },
+      { y: 16, slots: [{x:50, pos:"DC"}] }
+    ],
+    "4-2-2-2": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 77, slots: [{x:15, pos:"LI"},{x:35, pos:"DFC"},{x:65, pos:"DFC"},{x:85, pos:"LD"}] },
+      { y: 58, slots: [{x:35, pos:"MCD"},{x:65, pos:"MCD"}] },
+      { y: 38, slots: [{x:28, pos:"MCO"},{x:72, pos:"MCO"}] },
+      { y: 16, slots: [{x:38, pos:"DC"},{x:62, pos:"DC"}] }
+    ],
+    "4-5-1": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 77, slots: [{x:15, pos:"LI"},{x:35, pos:"DFC"},{x:65, pos:"DFC"},{x:85, pos:"LD"}] },
+      { y: 52, slots: [{x:12, pos:"MI"},{x:28, pos:"MC"},{x:50, pos:"MCD"},{x:72, pos:"MC"},{x:88, pos:"MD"}] },
+      { y: 17, slots: [{x:50, pos:"DC"}] }
+    ],
+    "4-3-2-1": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 77, slots: [{x:15, pos:"LI"},{x:35, pos:"DFC"},{x:65, pos:"DFC"},{x:85, pos:"LD"}] },
+      { y: 58, slots: [{x:22, pos:"MCD"},{x:50, pos:"MC"},{x:78, pos:"MCD"}] },
+      { y: 37, slots: [{x:35, pos:"MCO"},{x:65, pos:"MCO"}] },
+      { y: 16, slots: [{x:50, pos:"DC"}] }
     ]
   };
 
@@ -1165,11 +1663,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!data.manager.tactica) {
       const jugadores = getPlantillaEquipo(data.manager.equipo);
-      data.manager.tactica = {
-        formacion: "4-3-3",
-        once: jugadores.slice(0, 11).map(p => p.id),
-        banca: jugadores.slice(11).map(p => p.id)
-      };
+      const eq = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.find(e => e.name === data.manager.equipo) : null;
+      const formacion = eq?.formation || '4-3-3';
+      const { once, banca } = elegirMejorOnce(jugadores, formacion);
+      data.manager.tactica = { formacion, once, banca };
       localStorage.setItem('blue_lock_save', JSON.stringify(data));
     }
     slotSeleccionado = null;
@@ -1185,14 +1682,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const fichajes = getFichajes();
     if (fichajes.length > 0) {
       const f = fichajes.find(p => p.id === id);
-      if (f) return aplicarEntrenamiento(f);
+      if (f) return aplicarEstamina(aplicarEntrenamiento(f), teamIdPorNombre(equipo));
     }
     if (equipo && typeof PLANTILLAS_EQUIPO !== 'undefined') {
       for (const key of Object.keys(PLANTILLAS_EQUIPO)) {
         const plantilla = PLANTILLAS_EQUIPO[key];
         if (plantilla[0]?.equipo === equipo || !equipo) {
           const found = plantilla.find(p => p.id === id);
-          if (found) return aplicarEntrenamiento(normalizarJugador(found));
+          if (found) return aplicarEstamina(aplicarEntrenamiento(normalizarJugador(found)), key);
           if (plantilla[0]?.equipo === equipo) break;
         }
       }
@@ -1203,15 +1700,25 @@ document.addEventListener('DOMContentLoaded', () => {
   function normalizarJugador(j) {
     if (!j) return j;
     if (!j.foto) j.foto = `assets/players/${j.id}.png`;
+    if (typeof j.estamina !== 'number') j.estamina = 100;
     if (j.pierna) j.pie = j.pierna;
     if (j.altura && typeof j.altura === 'string') j.altura = parseInt(j.altura) || j.altura;
     if (j.stats) {
-      j.tiro = j.stats.sho ?? j.tiro;
-      j.pase = j.stats.pas ?? j.pase;
-      j.regate = j.stats.dri ?? j.regate;
-      j.defensa = j.stats.def ?? j.defensa;
-      j.pac = j.stats.pac ?? j.pac;
-      j.phy = j.stats.phy ?? j.phy;
+      if (j.posicion === 'POR') {
+        j.div = j.stats.div ?? j.div;
+        j.han = j.stats.han ?? j.han;
+        j.kic = j.stats.kic ?? j.kic;
+        j.ref = j.stats.ref ?? j.ref;
+        j.spd = j.stats.spd ?? j.spd;
+        j.pos = j.stats.pos ?? j.pos;
+      } else {
+        j.tiro = j.stats.sho ?? j.tiro;
+        j.pase = j.stats.pas ?? j.pase;
+        j.regate = j.stats.dri ?? j.regate;
+        j.defensa = j.stats.def ?? j.defensa;
+        j.pac = j.stats.pac ?? j.pac;
+        j.phy = j.stats.phy ?? j.phy;
+      }
       if (j.posicionSecundaria) j.posicionSec = j.posicionSecundaria;
     }
     return j;
@@ -1226,15 +1733,27 @@ document.addEventListener('DOMContentLoaded', () => {
       const rec = data.manager?.entrenamiento?.[jug.id];
       if (!rec || !rec.stats) return jug;
       const copia = { ...jug, stats: { ...(jug.stats || {}) } };
-      ['pac', 'sho', 'pas', 'dri', 'def', 'phy'].forEach(k => {
-        if (typeof rec.stats[k] === 'number') copia.stats[k] = rec.stats[k];
-      });
-      copia.tiro = copia.stats.sho ?? jug.tiro;
-      copia.pase = copia.stats.pas ?? jug.pase;
-      copia.regate = copia.stats.dri ?? jug.regate;
-      copia.defensa = copia.stats.def ?? jug.defensa;
-      copia.pac = copia.stats.pac ?? jug.pac;
-      copia.phy = copia.stats.phy ?? jug.phy;
+      if (jug.posicion === 'POR') {
+        ['div', 'han', 'kic', 'ref', 'spd', 'pos'].forEach(k => {
+          if (typeof rec.stats[k] === 'number') copia.stats[k] = rec.stats[k];
+        });
+        copia.div = copia.stats.div ?? jug.div;
+        copia.han = copia.stats.han ?? jug.han;
+        copia.kic = copia.stats.kic ?? jug.kic;
+        copia.ref = copia.stats.ref ?? jug.ref;
+        copia.spd = copia.stats.spd ?? jug.spd;
+        copia.pos = copia.stats.pos ?? jug.pos;
+      } else {
+        ['pac', 'sho', 'pas', 'dri', 'def', 'phy'].forEach(k => {
+          if (typeof rec.stats[k] === 'number') copia.stats[k] = rec.stats[k];
+        });
+        copia.tiro = copia.stats.sho ?? jug.tiro;
+        copia.pase = copia.stats.pas ?? jug.pase;
+        copia.regate = copia.stats.dri ?? jug.regate;
+        copia.defensa = copia.stats.def ?? jug.defensa;
+        copia.pac = copia.stats.pac ?? jug.pac;
+        copia.phy = copia.stats.phy ?? jug.phy;
+      }
       if (typeof rec.grl === 'number') copia.grl = rec.grl;
       return copia;
     } catch (e) {
@@ -1248,7 +1767,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!saved) return [];
       const data = JSON.parse(saved);
       if (data.tipo !== 'manager' || !data.manager?.fichajes) return [];
-      return data.manager.fichajes.map(normalizarJugador);
+      const vendidos = data.manager.vendidos || [];
+      return data.manager.fichajes.map(normalizarJugador).filter(f => !vendidos.includes(f.id));
     } catch (e) {
       return [];
     }
@@ -1256,18 +1776,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getPlantillaEquipo(equipo) {
     let base = [];
+    let teamId = teamIdPorNombre(equipo);
     if (equipo && typeof PLANTILLAS_EQUIPO !== 'undefined') {
       for (const key of Object.keys(PLANTILLAS_EQUIPO)) {
         const plantilla = PLANTILLAS_EQUIPO[key];
         if (plantilla[0]?.equipo === equipo) {
-          base = plantilla.map(normalizarJugador).map(aplicarEntrenamiento);
+          teamId = key;
+          base = plantilla.map(normalizarJugador).map(aplicarEntrenamiento).map(p => aplicarEstamina(p, key));
           break;
         }
       }
     }
     if (equipo) {
+      const vendidos = [];
+      try {
+        const saved = localStorage.getItem('blue_lock_save');
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (data.manager?.vendidos) vendidos.push(...data.manager.vendidos);
+        }
+      } catch (e) { /* noop */ }
+      base = base.filter(p => !vendidos.includes(p.id));
       const fichajes = getFichajes().filter(f => f.equipo === equipo && !base.some(p => p.id === f.id));
-      return base.concat(fichajes.map(aplicarEntrenamiento));
+      return base.concat(fichajes.map(p => aplicarEstamina(aplicarEntrenamiento(p), teamId)));
     }
     return base;
   }
@@ -1284,7 +1815,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderizarFilaJugador(jug) {
     if (!jug) return '';
-    const grl = jug.grl || Math.round((jug.tiro + jug.pase + jug.regate + jug.defensa + (jug.pac || 60) + (jug.phy || 60)) / 6);
+    const grl = calcularGrlJugador(jug);
     const foto = jug.foto || 'assets/players/default.png';
     return `<div class="pfila">
       <div class="pfila-grl">${grl}</div>
@@ -1311,10 +1842,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderizarFilaInfo(jug) {
     if (!jug) return '';
-    const grl = jug.grl || Math.round((jug.tiro + jug.pase + jug.regate + jug.defensa + (jug.pac || 60) + (jug.phy || 60)) / 6);
+    const grl = calcularGrlJugador(jug);
     const foto = jug.foto || 'assets/players/default.png';
     const bandera = jug.bandera || '';
     const pie = pieTexto(jug);
+    const tieneLogoClub = !!escudoEquipoPorNombre(jug.equipo);
     return `<div class="pfila pfila-info-row">
       <div class="pfila-grl">${grl}</div>
       <div class="pfila-avatar">
@@ -1324,18 +1856,38 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="pfila-info">
         <span class="pfila-name">${jug.nombre}</span>
         <span class="pfila-meta"><span class="${posColor(jug.posicion)}">${jug.posicion}</span> · ${jug.edad} años</span>
+        <span class="pfila-valor">${formatearYenes(calcularValor(grl, jug))}</span>
       </div>
       <div class="pfila-extra">
-        <span class="pfila-extra-item">${bandera} ${jug.nacionalidad || '—'}</span>
-        <span class="pfila-extra-item"><i class="fas fa-shoe-prints"></i> ${pie}</span>
+        <span class="pfila-club-logo ${tieneLogoClub ? '' : 'con-forma'}">
+          ${htmlEscudoEquipo(jug.equipo)}
+        </span>
+        <span class="pfila-extra-col">
+          <span class="pfila-extra-item">${bandera} ${jug.nacionalidad || '—'}</span>
+          <span class="pfila-extra-item"><i class="fas fa-shoe-prints"></i> ${pie}</span>
+        </span>
       </div>
     </div>`;
   }
 
   function renderizarFilaStats(jug) {
     if (!jug) return '';
-    const grl = jug.grl || Math.round((jug.tiro + jug.pase + jug.regate + jug.defensa + (jug.pac || 60) + (jug.phy || 60)) / 6);
+    const grl = calcularGrlJugador(jug);
     const foto = jug.foto || 'assets/players/default.png';
+    const esPOR = jug.posicion === 'POR';
+    const statsHtml = esPOR
+      ? `<div class="pfila-stat"><span>DIV</span>${jug.div || 60}</div>
+         <div class="pfila-stat"><span>HAN</span>${jug.han || 60}</div>
+         <div class="pfila-stat"><span>KIC</span>${jug.kic || 60}</div>
+         <div class="pfila-stat"><span>REF</span>${jug.ref || 60}</div>
+         <div class="pfila-stat"><span>SPD</span>${jug.spd || 60}</div>
+         <div class="pfila-stat"><span>POS</span>${jug.pos || 60}</div>`
+      : `<div class="pfila-stat"><span>PAC</span>${jug.pac || 60}</div>
+         <div class="pfila-stat"><span>SHO</span>${jug.tiro}</div>
+         <div class="pfila-stat"><span>PAS</span>${jug.pase}</div>
+         <div class="pfila-stat"><span>DRI</span>${jug.regate}</div>
+         <div class="pfila-stat"><span>DEF</span>${jug.defensa}</div>
+         <div class="pfila-stat"><span>PHY</span>${jug.phy || 60}</div>`;
     return `<div class="pfila pfila-stats-row">
       <div class="pfila-grl">${grl}</div>
       <div class="pfila-avatar">
@@ -1345,26 +1897,36 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="pfila-info">
         <span class="pfila-name">${jug.nombre}</span>
         <span class="pfila-meta"><span class="${posColor(jug.posicion)}">${jug.posicion}</span> · ${jug.edad} años</span>
+        <span class="pfila-valor">${formatearYenes(calcularValor(grl, jug))}</span>
       </div>
       <div class="pfila-stats">
-        <div class="pfila-stat"><span>PAC</span>${jug.pac || 60}</div>
-        <div class="pfila-stat"><span>SHO</span>${jug.tiro}</div>
-        <div class="pfila-stat"><span>PAS</span>${jug.pase}</div>
-        <div class="pfila-stat"><span>DRI</span>${jug.regate}</div>
-        <div class="pfila-stat"><span>DEF</span>${jug.defensa}</div>
-        <div class="pfila-stat"><span>PHY</span>${jug.phy || 60}</div>
+        ${statsHtml}
       </div>
     </div>`;
   }
 
   function renderizarFichaGrandeJugador(jug) {
     if (!jug) return '';
-    const grl = jug.grl || Math.round((jug.tiro + jug.pase + jug.regate + jug.defensa + (jug.pac || 60) + (jug.phy || 60)) / 6);
+    const grl = calcularGrlJugador(jug);
     const foto = jug.foto || 'assets/players/default.png';
     function bar(val) {
       const pct = Math.round((val / 100) * 100);
       return `<div class="ficha-stat-box"><span class="ficha-stat-label">${val}</span><div class="ficha-stat-bar"><div class="ficha-stat-fill" style="width:${pct}%"></div></div></div>`;
     }
+    const esPOR = jug.posicion === 'POR';
+    const statsGrid = esPOR
+      ? `<div class="ficha-stat-cat"><span class="ficha-stat-title">ESTIRADA</span>${bar(jug.div || 60)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">PARADA</span>${bar(jug.han || 60)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">SAQUE</span>${bar(jug.kic || 60)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">REFLEJOS</span>${bar(jug.ref || 60)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">VELOCIDAD</span>${bar(jug.spd || 60)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">POSICIÓN</span>${bar(jug.pos || 60)}</div>`
+      : `<div class="ficha-stat-cat"><span class="ficha-stat-title">VELOCIDAD</span>${bar(jug.pac || 60)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">TIRO</span>${bar(jug.tiro)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">PASE</span>${bar(jug.pase)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">REGATE</span>${bar(jug.regate)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">DEFENSA</span>${bar(jug.defensa)}</div>
+         <div class="ficha-stat-cat"><span class="ficha-stat-title">FÍSICO</span>${bar(jug.phy || 60)}</div>`;
     return `<div class="mi-egoista-card">
       <div class="ficha-header"><span>BLUE LOCK PROJECT</span></div>
       <div class="ficha-top">
@@ -1380,19 +1942,14 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
       <div class="ficha-stats-grid">
-        <div class="ficha-stat-cat"><span class="ficha-stat-title">VELOCIDAD</span>${bar(jug.pac || 60)}</div>
-        <div class="ficha-stat-cat"><span class="ficha-stat-title">TIRO</span>${bar(jug.tiro)}</div>
-        <div class="ficha-stat-cat"><span class="ficha-stat-title">PASE</span>${bar(jug.pase)}</div>
-        <div class="ficha-stat-cat"><span class="ficha-stat-title">REGATE</span>${bar(jug.regate)}</div>
-        <div class="ficha-stat-cat"><span class="ficha-stat-title">DEFENSA</span>${bar(jug.defensa)}</div>
-        <div class="ficha-stat-cat"><span class="ficha-stat-title">FÍSICO</span>${bar(jug.phy || 60)}</div>
+        ${statsGrid}
       </div>
     </div>`;
   }
 
   function renderizarCartaJugador(jug, compact) {
     if (!jug) return '';
-    const grl = jug.grl || Math.round((jug.tiro + jug.pase + jug.regate + jug.defensa + (jug.pac || 60) + (jug.phy || 60)) / 6);
+    const grl = calcularGrlJugador(jug);
     const foto = jug.foto || 'assets/players/default.png';
     const nombreParts = jug.nombre.split(' ');
     const apellido = nombreParts.length > 1 ? nombreParts.slice(1).join(' ') : jug.nombre;
@@ -1423,6 +1980,101 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>`;
   }
 
+  function estaminaHtml(jug) {
+    if (!jug) return '';
+    const est = typeof jug.estamina === 'number' ? jug.estamina : 100;
+    const cls = est >= 60 ? 'alta' : est >= 30 ? 'media' : 'baja';
+    return `<div class="tslot-stamina">
+      <div class="tslot-stamina-fill ${cls}" style="width:${est}%"></div>
+      <span>${est}</span>
+    </div>`;
+  }
+
+  // ===== MEJOR ONCE POR POSICIÓN =====
+  const STAT_CLAVE_POSICION = {
+    POR: 'por', DFC: 'def', LD: 'def', LI: 'def', CAD: 'def', CAI: 'def',
+    MCD: 'def', MC: 'pas', MCO: 'pas', MI: 'dri', MD: 'dri',
+    EI: 'dri', ED: 'dri', SD: 'sho', DC: 'sho'
+  };
+
+  const POS_COMPATIBLES = {
+    DFC: ['MCD', 'LD', 'LI', 'CAD', 'CAI'],
+    LD: ['CAD', 'DFC'], LI: ['CAI', 'DFC'],
+    CAD: ['LD', 'DFC'], CAI: ['LI', 'DFC'],
+    MCD: ['MC', 'DFC'], MC: ['MCD', 'MCO'], MCO: ['MC', 'SD', 'MI', 'MD'],
+    MI: ['MC', 'EI', 'MD'], MD: ['MC', 'ED', 'MI'],
+    EI: ['MI', 'ED', 'SD'], ED: ['MD', 'EI', 'SD'],
+    SD: ['MCO', 'DC'], DC: ['SD', 'EI', 'ED']
+  };
+
+  function statJugador(jug, key) {
+    if (!jug) return 0;
+    if (key === 'por') {
+      return Math.round(((jug.div || 60) + (jug.han || 60) + (jug.kic || 60) + (jug.ref || 60) + (jug.spd || 60) + (jug.pos || 60)) / 6);
+    }
+    const val = Number(jug.stats?.[key] ?? jug[key] ?? 50);
+    const pac = Number(jug.stats?.pac ?? jug.pac ?? 50);
+    return val + pac * 0.05;
+  }
+
+  function posicionesDeJugador(jug) {
+    const lista = [];
+    if (jug?.posicion) lista.push(jug.posicion);
+    if (jug?.posicionSec) {
+      String(jug.posicionSec).split('/').forEach(p => {
+        const t = p.trim();
+        if (t) lista.push(t);
+      });
+    }
+    return lista;
+  }
+
+  function elegirMejorOnce(plantilla, formacion) {
+    const plant = (plantilla || []).slice();
+    const slots = (FORMACIONES_POS[formacion] || FORMACIONES_POS['4-3-3'])
+      .flatMap(fila => fila.slots.map(s => s.pos));
+    const usados = new Set();
+    const resultado = [];
+
+    function mejorDe(candidatos, posSlot) {
+      let mejor = null;
+      let mejorScore = -1;
+      candidatos.forEach(j => {
+        if (!j || usados.has(j.id)) return;
+        const score = statJugador(j, STAT_CLAVE_POSICION[posSlot] || 'grl');
+        if (score > mejorScore) { mejorScore = score; mejor = j; }
+      });
+      if (mejor) usados.add(mejor.id);
+      return mejor;
+    }
+
+    slots.forEach(posSlot => {
+      const exactos = plant.filter(j => posicionesDeJugador(j).includes(posSlot));
+      const j = mejorDe(exactos, posSlot);
+      resultado.push(j ? j.id : null);
+    });
+
+    slots.forEach((posSlot, idx) => {
+      if (resultado[idx]) return;
+      const comps = POS_COMPATIBLES[posSlot] || [];
+      for (const cp of comps) {
+        const candidatos = plant.filter(j => posicionesDeJugador(j).includes(cp));
+        const j = mejorDe(candidatos, posSlot);
+        if (j) { resultado[idx] = j.id; break; }
+      }
+    });
+
+    slots.forEach((posSlot, idx) => {
+      if (resultado[idx]) return;
+      const j = mejorDe(plant, posSlot);
+      if (j) resultado[idx] = j.id;
+    });
+
+    const once = resultado.filter(Boolean);
+    const banca = plant.filter(p => !usados.has(p.id)).map(p => p.id);
+    return { once, banca };
+  }
+
   function renderCampo() {
     const saved = localStorage.getItem('blue_lock_save');
     if (!saved) return;
@@ -1441,13 +2093,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const nombreParts = (jug?.nombre || '').split(' ');
         const nombreMostrar = nombreParts.length > 1 ? nombreParts.slice(1).join(' ') : (jug?.nombre || '—');
         html += `<div class="tactica-slot ${selected ? 'selected' : ''}" style="top:${fila.y}%;left:${slot.x}%;" data-idx="${idx}" onclick="clickSlot(${idx})" ondblclick="abrirFichaJugador('${jugId}')">
-          <div class="tslot-grl">${jug?.grl || Math.round(((jug?.tiro||60)+(jug?.pase||60)+(jug?.regate||60)+(jug?.defensa||60)+(jug?.pac||60)+(jug?.phy||60))/6)}</div>
+          <div class="tslot-grl">${calcularGrlJugador(jug)}</div>
           <div class="tslot-avatar">
             <img src="${jug?.foto || 'assets/players/default.png'}" onerror="this.onerror=null;this.src='assets/players/default.png';this.addEventListener('error',function(){this.style.display='none'})" alt="${jug?.nombre || ''}">
           </div>
           <div class="tslot-info">
             <span class="tslot-pos ${posColor(slot.pos) || ''}">${slot.pos || jug?.posicion || ''}</span>
             <span class="tslot-name">${nombreMostrar}</span>
+            ${estaminaHtml(jug)}
           </div>
         </div>`;
         idx++;
@@ -1469,13 +2122,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!jug) return;
       const selected = subSeleccionado === bidx;
       html += `<div class="tactica-sub-card ${selected ? 'selected' : ''}" onclick="clickSub('${jugId}', ${bidx})" ondblclick="abrirFichaJugador('${jugId}')">
-        <div class="tslot-grl" style="position:static;width:30px;font-size:0.7rem;">${jug.grl || Math.round((jug.tiro+jug.pase+jug.regate+jug.defensa+(jug.pac||60)+(jug.phy||60))/6)}</div>
+        <div class="tslot-grl" style="position:static;width:30px;font-size:0.7rem;">${calcularGrlJugador(jug)}</div>
         <div class="tslot-avatar">
           <img src="${jug.foto || 'assets/players/default.png'}" onerror="this.onerror=null;this.src='assets/players/default.png';this.addEventListener('error',function(){this.style.display='none'})" alt="${jug.nombre}">
         </div>
         <div class="tslot-info" style="flex:1;align-items:flex-start;">
           <span class="tslot-pos ${posColor(jug.posicion)}">${jug.posicion}</span>
           <span class="tslot-name" style="max-width:none;font-size:0.65rem;">${jug.nombre}</span>
+          ${estaminaHtml(jug)}
         </div>
         <i class="fas fa-exchange-alt swap-icon"></i>
       </div>`;
@@ -1493,8 +2147,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const subId = tactica.banca[subSeleccionado];
       const titularId = tactica.once[idx];
       tactica.once[idx] = subId;
-      tactica.banca.splice(subSeleccionado, 1);
-      tactica.banca.push(titularId);
+      tactica.banca[subSeleccionado] = titularId;
       slotSeleccionado = null;
       subSeleccionado = null;
       localStorage.setItem('blue_lock_save', JSON.stringify(data));
@@ -1526,8 +2179,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const titularId = tactica.once[slotSeleccionado];
       tactica.once[slotSeleccionado] = jugId;
       const bancaIdx = tactica.banca.indexOf(jugId);
-      if (bancaIdx !== -1) tactica.banca.splice(bancaIdx, 1);
-      tactica.banca.push(titularId);
+      if (bancaIdx !== -1) tactica.banca[bancaIdx] = titularId;
       slotSeleccionado = null;
       subSeleccionado = null;
       localStorage.setItem('blue_lock_save', JSON.stringify(data));
@@ -1570,12 +2222,28 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // ===== MERCADO DE FICHAJES =====
-  function calcularValor(grl) {
-    return Math.round(grl * grl * 0.8);
+  function calcularValor(grl, jug) {
+    if (jug && typeof VALORES_JUGADOR !== 'undefined' && VALORES_JUGADOR[jug.id]) {
+      return VALORES_JUGADOR[jug.id];
+    }
+    const g = grl || 60;
+    if (g >= 95) return 600000000 + Math.round((g - 95) * 60000000);
+    if (g >= 90) return 400000000 + Math.round((g - 90) * 40000000);
+    if (g >= 85) return 180000000 + Math.round((g - 85) * 24000000);
+    if (g >= 80) return 90000000 + Math.round((g - 80) * 18000000);
+    if (g >= 70) return 40000000 + Math.round((g - 70) * 5000000);
+    return 10000000 + Math.round((g - 50) * 750000);
   }
 
-  function calcularSalario(grl) {
-    return Math.round(calcularValor(grl) * 0.1);
+  function calcularSalario(grl, jug) {
+    return Math.round(calcularValor(grl, jug) * 0.1);
+  }
+
+  function formatearYenes(n) {
+    if (typeof n !== 'number') return '—';
+    if (n >= 1000000000) return `¥${(n / 1000000000).toFixed(1).replace('.', ',')}B`;
+    if (n >= 1000000) return `¥${Math.round(n / 1000000)}M`;
+    return `¥${n}`;
   }
 
   function getEquipoIdDeJugador(jug) {
@@ -1591,6 +2259,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!eqId || typeof DIVISIONES === 'undefined') return null;
     if (DIVISIONES.primera?.equipos?.includes(eqId)) return 'primera';
     if (DIVISIONES.segunda?.equipos?.includes(eqId)) return 'segunda';
+    if (DIVISIONES.institutos?.equipos?.includes(eqId)) return 'institutos';
     return null;
   }
 
@@ -1601,9 +2270,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = JSON.parse(saved);
       if (data.tipo !== 'manager' || !data.manager) return 0;
       if (typeof data.manager.presupuesto !== 'number') {
-        const eq = NEO_EQUIPOS.find(e => e.nombre === data.manager.equipo);
-        data.manager.presupuesto = eq?.presupuesto ?? 5000;
+        const eq = NEO_EQUIPOS.find(e => e.name === data.manager.equipo);
+        data.manager.presupuesto = eq?.budget ?? 5000000000;
         if (!data.manager.fichajes) data.manager.fichajes = [];
+        localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      } else if (data.manager.presupuesto < 10000) {
+        data.manager.presupuesto = data.manager.presupuesto * 1000000;
         localStorage.setItem('blue_lock_save', JSON.stringify(data));
       }
       return data.manager.presupuesto;
@@ -1633,8 +2305,9 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     division: {
       '': 'División',
-      primera: '1.ª División',
-      segunda: '2.ª División'
+      primera: 'LIGA NEL',
+      segunda: 'LIGA PRO',
+      institutos: 'INSTITUTOS'
     },
     orden: {
       grl: 'Mayor GRL',
@@ -1686,7 +2359,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.renderMercado = function () {
     getPresupuestoManager();
-    document.getElementById('mercado-presupuesto').textContent = getPresupuestoManager().toLocaleString('es-ES');
+    document.getElementById('mercado-presupuesto').textContent = formatearYenes(getPresupuestoManager());
     const buscar = document.getElementById('mercado-buscar');
     if (buscar) buscar.value = '';
     sincronizarLabelsMercado();
@@ -1698,7 +2371,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!saved) return;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
-    const presupuesto = data.manager.presupuesto ?? getPresupuestoManager();
     const equipo = data.manager.equipo;
 
     const base = getPlantillaEquipo(equipo);
@@ -1717,12 +2389,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const orden = mercadoFiltro.orden || 'grl';
     jugadores.forEach(p => {
-      p._grl = p.grl || Math.round((p.tiro + p.pase + p.regate + p.defensa + (p.pac || 60) + (p.phy || 60)) / 6);
+      p._grl = calcularGrlJugador(p);
     });
     if (orden === 'grl') {
       jugadores.sort((a, b) => b._grl - a._grl);
     } else if (orden === 'precio') {
-      jugadores.sort((a, b) => calcularValor(a._grl) - calcularValor(b._grl));
+      jugadores.sort((a, b) => calcularValor(a._grl, a) - calcularValor(b._grl, b));
     } else {
       jugadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
     }
@@ -1738,29 +2410,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let html = '';
     jugadores.forEach(p => {
-      const valor = calcularValor(p._grl);
-      const salario = calcularSalario(p._grl);
-      const puede = presupuesto >= valor;
-      const bandera = p.bandera || '';
-      const club = p.equipo || p.instituto || '—';
-      html += `<div class="mercado-fila" onclick="abrirFichaJugador('${p.id}')">
-        <div class="mercado-grl">${p._grl}</div>
-        <div class="mercado-avatar">
-          <img src="${p.foto || 'assets/players/default.png'}" onerror="this.onerror=null;this.src='assets/players/default.png';this.addEventListener('error',function(){this.style.display='none'})" alt="${p.nombre}">
-          <i class="fas fa-user mercado-avatar-fallback"></i>
-        </div>
-        <div class="mercado-info">
-          <span class="mercado-name">${p.nombre} ${bandera}</span>
-          <span class="mercado-meta"><span class="${posColor(p.posicion)}">${p.posicion}</span> · ${club} · ${p._grl} GRL</span>
-          <span class="mercado-dinero">🪙 ${valor.toLocaleString('es-ES')} <span class="mercado-salario">/ salario 🪙 ${salario.toLocaleString('es-ES')}</span></span>
-        </div>
-        <button class="mercado-fichar ${puede ? '' : 'disabled'}" ${puede ? '' : 'disabled'} onclick="event.stopPropagation(); ficharJugador('${p.id}')">FICHAR</button>
+      html += `<div class="plantilla-card-wrapper" onclick="abrirFichaJugador('${p.id}')">
+        ${renderizarFilaInfo(p)}
       </div>`;
     });
     container.innerHTML = html;
   };
 
   window.ficharJugador = function (jugadorId) {
+    cerrarFicha();
     let saved = localStorage.getItem('blue_lock_save');
     if (!saved) return;
     let data = JSON.parse(saved);
@@ -1775,11 +2433,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const jug = todosLosJugadores().find(p => p.id === jugadorId);
     if (!jug) return;
-    const grl = jug.grl || Math.round((jug.tiro + jug.pase + jug.regate + jug.defensa + (jug.pac || 60) + (jug.phy || 60)) / 6);
-    const valor = calcularValor(grl);
+    const grl = calcularGrlJugador(jug);
+    const valor = calcularValor(grl, jug);
 
     if (presupuesto < valor) {
-      mostrarModal('PRESUPUESTO INSUFICIENTE', `No tienes fondos suficientes para fichar a ${jug.nombre} (necesitas 🪙 ${valor.toLocaleString('es-ES')}).`);
+      mostrarModal('PRESUPUESTO INSUFICIENTE', `No tienes fondos suficientes para fichar a ${jug.nombre} (necesitas ${formatearYenes(valor)}).`);
       return;
     }
 
@@ -1789,23 +2447,531 @@ document.addEventListener('DOMContentLoaded', () => {
     data.manager.fichajes.push(nuevo);
     localStorage.setItem('blue_lock_save', JSON.stringify(data));
 
-    document.getElementById('mercado-presupuesto').textContent = data.manager.presupuesto.toLocaleString('es-ES');
+    document.getElementById('mercado-presupuesto').textContent = formatearYenes(data.manager.presupuesto);
     mostrarModal('¡FICHAJE COMPLETADO!', `¡Fichaje de ${jug.nombre} completado! Ha sido añadido a tu plantilla.`);
+    filtrarMercado();
+  };
+
+  window.venderJugador = function (jugadorId) {
+    cerrarFicha();
+    let saved = localStorage.getItem('blue_lock_save');
+    if (!saved) return;
+    let data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    if (typeof data.manager.presupuesto !== 'number') {
+      getPresupuestoManager();
+      saved = localStorage.getItem('blue_lock_save');
+      if (!saved) return;
+      data = JSON.parse(saved);
+    }
+
+    const jug = todosLosJugadores().find(p => p.id === jugadorId);
+    if (!jug) return;
+    const grl = calcularGrlJugador(jug);
+    const valor = calcularValor(grl, jug);
+
+    if (!data.manager.vendidos) data.manager.vendidos = [];
+    if (!data.manager.vendidos.includes(jugadorId)) data.manager.vendidos.push(jugadorId);
+
+    if (data.manager.fichajes) {
+      data.manager.fichajes = data.manager.fichajes.filter(f => f.id !== jugadorId);
+    }
+
+    data.manager.presupuesto = (data.manager.presupuesto || 0) + valor;
+    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+
+    document.getElementById('mercado-presupuesto').textContent = formatearYenes(data.manager.presupuesto);
+    mostrarModal('¡JUGADOR VENDIDO!', `Has ofrecido a ${jug.nombre} a otros equipos por ${formatearYenes(valor)}.`);
     filtrarMercado();
   };
 
   // ===== ENTRENAMIENTO SEMANAL =====
   const ETIQUETAS_STATS = { pac: 'PAC', sho: 'SHO', pas: 'PAS', dri: 'DRI', def: 'DEF', phy: 'PHY' };
 
+  // ===== SIMULADOR DE JORNADA (MODO CARRERA MANAGER) =====
+  function aplicarResultado(clasif, localId, visitId, gl, gv) {
+    const l = clasif[localId] || (clasif[localId] = { pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 });
+    const v = clasif[visitId] || (clasif[visitId] = { pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 });
+    l.pj++; v.pj++;
+    l.gf += gl; l.gc += gv;
+    v.gf += gv; v.gc += gl;
+    if (gl > gv) { l.pg++; v.pp++; l.pts += 3; }
+    else if (gl < gv) { v.pg++; l.pp++; v.pts += 3; }
+    else { l.pe++; v.pe++; l.pts += 1; v.pts += 1; }
+  }
+
+  function simularPartidoFondo(localNombre, visitNombre) {
+    const gl = calcularTeamGrl(localNombre);
+    const gv = calcularTeamGrl(visitNombre);
+    const dif = gl - gv;
+    const factorLocal = 3;
+    const sesgo = (dif + factorLocal) / 8;
+    const golesLocal = Math.max(0, Math.round(sesgo + (Math.random() * 2.4) - 1));
+    const golesVisit = Math.max(0, Math.round((Math.random() * 2.2) - 1.1 - sesgo / 2));
+    return [Math.min(golesLocal, 5), Math.min(golesVisit, 5)];
+  }
+
+  function escudoHtmlPartido(teamId) {
+    const escudo = escudoEquipoPorId(teamId);
+    if (escudo) {
+      return `<img src="${escudo}" onerror="this.onerror=null;this.style.display='none'" alt="">`;
+    }
+    const nombre = nombreEquipoPorId(teamId);
+    const col = (typeof COLORES_EQUIPOS !== 'undefined' && COLORES_EQUIPOS[teamId])
+      ? COLORES_EQUIPOS[teamId]
+      : { p: '#334466', s: '#667799', forma: 'circulo' };
+    return `<span class="clasificacion-logo-badge forma-${col.forma || 'circulo'}" style="background:linear-gradient(135deg,${col.p},${col.s})">${inicialesEquipo(nombre)}</span>`;
+  }
+
+  function escribirLogPartido(texto, clase) {
+    const log = document.getElementById('partido-log');
+    if (!log) return;
+    const div = document.createElement('div');
+    div.className = 'partido-log-item' + (clase ? ' ' + clase : '');
+    div.textContent = texto;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  window.cancelarSimulacionPartido = function () {
+    partidoCtx = null;
+    partidoTurno = 0;
+    goBack();
+  };
+
+  window.verClasificacionTrasPartido = function () {
+    renderClasificacion();
+    showScreen('screen-clasificacion');
+  };
+
+  window.volverAlHubTrasPartido = function () {
+    navHistory.length = 0;
+    showScreen('screen-hub');
+    renderHub();
+  };
+
+  const TURNOS_PARTIDO = [
+    { tipo: 'ataque', minuto: 8 },
+    { tipo: 'defensa', minuto: 22 },
+    { tipo: 'ataque', minuto: 38 },
+    { tipo: 'defensa', minuto: 55 },
+    { tipo: 'ataque', minuto: 70 },
+    { tipo: 'defensa', minuto: 85 }
+  ];
+
+  let partidoTurno = 0;
+  let partidoGolesLocal = 0;
+  let partidoGolesVisit = 0;
+  let partidoCtx = null;
+
+  function partidoJugadoresDelOnce(equipoNombre) {
+    try {
+      const saved = localStorage.getItem('blue_lock_save');
+      if (!saved) return [];
+      const d = JSON.parse(saved);
+      const once = d.manager?.tactica?.once || [];
+      return once.map(id => getJugador(id, equipoNombre)).filter(Boolean);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function elegirPorRol(plantilla, roles) {
+    const candidatos = plantilla.filter(p => p.posicion !== 'POR' && roles.includes(p.posicion));
+    const pool = candidatos.length ? candidatos : plantilla.filter(p => p.posicion !== 'POR');
+    if (!pool.length) return null;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  const CRUCES = {
+    DRI: ['DEF', 'PHY'],
+    SHO: ['DEF', 'PHY'],
+    PAC: ['PAC', 'DEF'],
+    PAS: ['DEF', 'PAC'],
+    PHY: ['PHY', 'DEF'],
+    DEF: ['DEF', 'PHY']
+  };
+
+  const ETIQUETA_STAT = { PAC: 'Ritmo', SHO: 'Tiro', PAS: 'Pase', DRI: 'Regate', DEF: 'Defensa', PHY: 'Físico' };
+  const PROB_GOL = { SHO: 0.55, DRI: 0.40, PAC: 0.35, PAS: 0.30, PHY: 0.20, DEF: 0.15 };
+
+  function statDeJugador(jug, stat) {
+    if (!jug) return 50;
+    return Number(jug.stats?.[stat.toLowerCase()] ?? jug[stat.toLowerCase()] ?? 50);
+  }
+
+  function armaActivada(jug, stat) {
+    const armas = (typeof ARMAS_DATABASE !== 'undefined') ? (ARMAS_DATABASE[jug?.id] || []) : [];
+    let total = 0;
+    let nombre = '';
+    armas.forEach(a => {
+      if (a.stats && typeof a.stats[stat.toLowerCase()] === 'number') {
+        total += a.stats[stat.toLowerCase()];
+        if (!nombre) nombre = a.name;
+      }
+    });
+    return total > 0 ? { bonus: total, nombre } : null;
+  }
+
+  const ACCIONES_RIVAL = {
+    DC: ['SHO', 'DRI', 'PAC'],
+    SD: ['SHO', 'PAS', 'DRI'],
+    EI: ['DRI', 'PAC', 'SHO'],
+    ED: ['PAC', 'DRI', 'SHO'],
+    MCO: ['PAS', 'DRI', 'SHO'],
+    MI: ['PAS', 'DRI', 'PAC'],
+    MD: ['PAS', 'DRI', 'PAC'],
+    MC: ['PAS', 'DRI', 'PHY'],
+    MCD: ['PAS', 'DEF', 'PHY'],
+    DFC: ['DEF', 'PHY', 'PAC'],
+    LD: ['PAC', 'DEF', 'PAS'],
+    LI: ['PAC', 'DEF', 'PAS'],
+    CAD: ['PAC', 'DEF', 'PHY'],
+    CAI: ['PAC', 'DEF', 'PHY']
+  };
+
+  function ponderarAccionRival(jug) {
+    const pool = ACCIONES_RIVAL[jug?.posicion] || ['DRI', 'PAC', 'SHO'];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function mejorRespuestaIA(jug, accionesPosibles) {
+    let mejor = accionesPosibles[0];
+    let mejorVal = -1;
+    accionesPosibles.forEach(s => {
+      const v = statDeJugador(jug, s);
+      if (v > mejorVal) { mejorVal = v; mejor = s; }
+    });
+    return mejor;
+  }
+
+  function resolverDuelo(atac, def, statAt, statDef, esGolSiGana) {
+    let a = statDeJugador(atac, statAt);
+    let d = statDeJugador(def, statDef);
+    const atacFatigado = (atac?.estamina ?? 100) < 50;
+    const defFatigado = def ? (def?.estamina ?? 100) < 50 : false;
+    if (atacFatigado) a = Math.round(a * 0.85);
+    if (defFatigado) d = Math.round(d * 0.85);
+    const armaAt = armaActivada(atac, statAt);
+    const armaDef = def ? armaActivada(def, statDef) : null;
+    const bonusAt = armaAt ? armaAt.bonus : 0;
+    const bonusDef = armaDef ? armaDef.bonus : 0;
+    const dado = 1 + Math.floor(Math.random() * 20);
+    const totalAt = a + bonusAt + dado;
+    const totalDef = d + bonusDef + 10 + (def ? Math.floor(Math.random() * 8) : 0);
+    const gana = totalAt > totalDef;
+
+    let desenlace = gana ? 'avance' : 'recuperacion';
+    if (gana && esGolSiGana) {
+      let prob = PROB_GOL[statAt] ?? 0.35;
+      if (statDef === 'DEF') prob -= 0.05;
+      if (statDef === 'PHY') prob -= 0.08;
+      if (statDef === 'PAC') prob -= 0.03;
+      prob = Math.max(0.05, prob);
+      if (Math.random() < prob) desenlace = 'gol';
+    }
+    if (gana && desenlace === 'gol' && def && statDef === 'PHY' && (statAt === 'DRI' || statAt === 'PAC') && (totalAt - totalDef) <= 3 && Math.random() < 0.25) {
+      desenlace = 'falta';
+    }
+    const probGol = gana && esGolSiGana ? Math.max(0.05, (PROB_GOL[statAt] ?? 0.35) - (statDef === 'DEF' ? 0.05 : 0) - (statDef === 'PHY' ? 0.08 : 0) - (statDef === 'PAC' ? 0.03 : 0)) : 0;
+    return {
+      a, d, dado, bonusAt, bonusDef, totalAt, totalDef, gana, atacFatigado, defFatigado,
+      desenlace, armaAt, armaDef, gol: desenlace === 'gol', probGol
+    };
+  }
+
+  function finalizarPartido() {
+    const ctx = partidoCtx;
+    if (!ctx) return;
+    const { data, temporada, partidoUsuario, resultadosFondo, eqManager } = ctx;
+    document.getElementById('partido-minuto').textContent = "90' · FINAL";
+    aplicarResultado(temporada.clasificacion, partidoUsuario[0], partidoUsuario[1], partidoGolesLocal, partidoGolesVisit);
+    temporada.partidosJugados.push({
+      jornada: temporada.jornadaActual + 1,
+      local: partidoUsuario[0], visit: partidoUsuario[1],
+      gl: partidoGolesLocal, gv: partidoGolesVisit,
+      fondo: resultadosFondo
+    });
+    temporada.jornadaActual += 1;
+    data.manager.semana += 1;
+    data.manager.entrenadoSemana = false;
+    onceIdsDeManager(data).forEach(id => descontarEstaminaPartido(data, id, eqManager.id));
+    aplicarRecuperacionJornada(data);
+    generarAlertasBuzon(data);
+    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    sincronizarSlotActivo();
+    document.getElementById('partido-btn-fin').style.display = 'block';
+    reprobarGol();
+  }
+
+  function avatarHtml(jug) {
+    if (!jug) return '';
+    const foto = jug.foto || 'assets/players/default.png';
+    return `<div class="duelo-avatar">
+      <img src="${foto}" onerror="this.onerror=null;this.src='assets/players/default.png';this.addEventListener('error',function(){this.style.display='none'})" alt="${jug.nombre || ''}">
+    </div>`;
+  }
+
+  function dueloCardHtml(jug, rol, accion) {
+    const accionHtml = accion
+      ? `<div class="duelo-accion">${accion.label} <span class="duelo-stat">${accion.stat}</span></div>`
+      : '';
+    return `<div class="duelo-card ${rol}">
+      ${avatarHtml(jug)}
+      <span class="duelo-nombre">${jug?.nombre || '—'}</span>
+      <span class="duelo-pos ${posColor(jug?.posicion) || ''}">${jug?.posicion || ''}</span>
+      ${accionHtml}
+    </div>`;
+  }
+
+  function mostrarTurnoActual() {
+    const ctx = partidoCtx;
+    if (!ctx) return;
+    const turno = TURNOS_PARTIDO[partidoTurno];
+    if (!turno) {
+      finalizarPartido();
+      return;
+    }
+    const { esLocal, eqManager, rivalId, rivalNombre, data } = ctx;
+    document.getElementById('partido-minuto').textContent = `${turno.minuto}'`;
+    const miOnce = partidoJugadoresDelOnce(data.manager.equipo);
+    const plantillaRival = getPlantillaPorNombre(rivalNombre);
+
+    const ATACANTES = ['DC', 'SD', 'EI', 'ED', 'MCO', 'MI', 'MD'];
+    const DEFENSAS = ['DFC', 'LD', 'LI', 'CAD', 'CAI', 'MCD'];
+
+    const esAtaque = turno.tipo === 'ataque';
+    let miJug, rivalJug, accionRival, opcionesDefensa, misOpcionesAtaque;
+    if (esAtaque) {
+      miJug = elegirPorRol(miOnce, ATACANTES) || elegirPorRol(miOnce, []);
+      rivalJug = elegirPorRol(plantillaRival, DEFENSAS) || elegirPorRol(plantillaRival, []);
+      misOpcionesAtaque = (ACCIONES_RIVAL[miJug?.posicion] || ['DRI', 'SHO']).slice(0, 2);
+    } else {
+      rivalJug = elegirPorRol(plantillaRival, ATACANTES) || elegirPorRol(plantillaRival, []);
+      miJug = elegirPorRol(miOnce, DEFENSAS) || elegirPorRol(miOnce, []);
+      accionRival = ponderarAccionRival(rivalJug);
+      opcionesDefensa = CRUCES[accionRival] || ['DEF', 'PHY'];
+    }
+    ctx.turnoActual = { turno, miJug, rivalJug, esAtaque, accionRival, opcionesDefensa, resuelto: false };
+
+    const turnoEl = document.getElementById('partido-turno');
+    const opcionesEl = document.getElementById('partido-opciones');
+    const resultadoEl = document.getElementById('partido-resultado');
+    if (resultadoEl) resultadoEl.innerHTML = '';
+    if (!turnoEl || !opcionesEl) return;
+
+    const titulo = esAtaque ? 'TU TURNO DE ATAQUE' : '¡EL RIVAL ATACA!';
+    const rivalAccion = esAtaque
+      ? { label: 'Preparado para defender', stat: '—' }
+      : { label: ETIQUETA_STAT[accionRival] || accionRival, stat: accionRival };
+    const miAccion = esAtaque ? { label: 'Elige tu acción', stat: '—' } : { label: 'Elige cómo responder', stat: '—' };
+
+    let opcionesHtml;
+    const statsOfrecidas = esAtaque ? misOpcionesAtaque : opcionesDefensa;
+    opcionesHtml = statsOfrecidas.map(s => {
+      const v = Math.round(statDeJugador(miJug, s));
+      return `<button class="btn-bluelock partido-opcion-btn" onclick="resolverOpcion('${s}')">
+        <span>${ETIQUETA_STAT[s] || s} (${s})</span>
+        <span class="partido-opcion-stats">Tu ${s}: ${v}</span>
+      </button>`;
+    }).join('');
+
+    let armaAviso = '';
+    const armasJug = (typeof ARMAS_DATABASE !== 'undefined') ? (ARMAS_DATABASE[miJug?.id] || []) : [];
+    const armasRelevantes = armasJug.filter(a =>
+      Object.keys(a.stats || {}).some(st => statsOfrecidas.includes(st.toUpperCase()))
+    );
+    if (armasRelevantes.length) {
+      const tarjetas = armasRelevantes.map(a => {
+        const efectos = Object.entries(a.stats || {})
+          .filter(([st]) => statsOfrecidas.includes(st.toUpperCase()))
+          .map(([st, bonus]) => `<span class="ficha-arma-efecto">+${bonus} ${st.toUpperCase()}</span>`)
+          .join('');
+        return `<div class="partido-arma">
+          <div class="ficha-arma-nombre">${a.name}</div>
+          <div class="ficha-arma-efectos">${efectos}</div>
+        </div>`;
+      }).join('');
+      armaAviso = `<div class="partido-armas">
+        <div class="ficha-arma-header"><i class="fas fa-crosshairs"></i> ARMAS</div>
+        ${tarjetas}
+      </div>`;
+    }
+    opcionesHtml += armaAviso;
+
+    turnoEl.innerHTML = `
+      <div class="duelo-vs">
+        ${esLocal ? dueloCardHtml(miJug, 'propio', miAccion) : dueloCardHtml(rivalJug, 'rival', rivalAccion)}
+        <span class="duelo-vs-sep">VS</span>
+        ${esLocal ? dueloCardHtml(rivalJug, 'rival', rivalAccion) : dueloCardHtml(miJug, 'propio', miAccion)}
+      </div>
+      <div class="duelo-titulo">${titulo}</div>
+      <div class="duelo-pista">${esAtaque
+        ? `Ataca con ${miJug?.nombre || 'tu jugador'}. El rival defenderá con su mejor estadística según tu acción.`
+        : `${rivalJug?.nombre} va a usar su ${accionRival} (${ETIQUETA_STAT[accionRival] || accionRival}). Responde eligiendo cómo defender.`}</div>`;
+    opcionesEl.innerHTML = opcionesHtml;
+  }
+
+  function fmtDuelo(res, invertido) {
+    const a = invertido ? res.d : res.a;
+    const b = invertido ? res.a : res.d;
+    const bonusA = invertido ? res.bonusDef : res.bonusAt;
+    const bonusB = invertido ? res.bonusAt : res.bonusDef;
+    const ladoA = `${a}${bonusA ? '+' + bonusA + ' arma' : ''}+${res.dado}`;
+    const ladoB = `${b}${bonusB ? '+' + bonusB + ' arma' : ''}`;
+    return `${ladoA} vs ${ladoB}`;
+  }
+
+  window.resolverOpcion = function (stat) {
+    const ctx = partidoCtx;
+    if (!ctx || !ctx.turnoActual || ctx.turnoActual.resuelto) return;
+    const { turno, miJug, rivalJug, esAtaque, accionRival } = ctx.turnoActual;
+    const esLocal = ctx.esLocal;
+
+    let atac, def, statAt, statDef;
+    if (esAtaque) {
+      atac = miJug; def = rivalJug;
+      statAt = stat;
+      const contras = CRUCES[stat] || ['DEF', 'PHY'];
+      statDef = mejorRespuestaIA(def, contras);
+    } else {
+      atac = rivalJug; def = miJug;
+      statAt = accionRival;
+      statDef = stat;
+    }
+    const res = resolverDuelo(atac, def, statAt, statDef, true);
+    ctx.turnoActual.resuelto = true;
+
+    let texto, clase;
+    const atacNom = atac?.nombre || '?';
+    const defNom = def?.nombre || '?';
+    let armaMsg = '';
+    if (res.armaAt) armaMsg += ` +${res.armaAt.bonus} ${statAt}`;
+    if (res.armaDef) armaMsg += ` +${res.armaDef.bonus} ${statDef}`;
+    if (armaMsg) armaMsg = ' ARMA:' + armaMsg;
+
+    if (esAtaque) {
+      if (res.desenlace === 'gol') {
+        texto = `¡GOLAZO! ${atacNom} gana el duelo con ${statAt} y marca (${fmtDuelo(res, false)})${armaMsg}`;
+        clase = 'gol';
+        if (esLocal) partidoGolesLocal++; else partidoGolesVisit++;
+      } else if (res.desenlace === 'falta') {
+        texto = `¡FALTA! ${defNom} derriba a ${atacNom} con su carga (${fmtDuelo(res, false)})${armaMsg}`;
+        clase = 'parada';
+      } else if (res.gana) {
+        texto = `${atacNom} gana la jugada con ${statAt} pero no logra concretar (${fmtDuelo(res, false)})${armaMsg}`;
+        clase = res.armaAt ? 'arma' : '';
+      } else {
+        texto = `${defNom} recupera el balón frente a ${atacNom} (${fmtDuelo(res, false)})${armaMsg}`;
+        clase = 'parada';
+      }
+    } else {
+      if (res.desenlace === 'gol') {
+        texto = `¡GOL DEL RIVAL! ${atacNom} marca con ${statAt} superando a ${defNom} (${fmtDuelo(res, true)})${armaMsg}`;
+        clase = 'gol';
+        if (esLocal) partidoGolesVisit++; else partidoGolesLocal++;
+      } else if (res.desenlace === 'falta') {
+        texto = `¡FALTA! ${defNom} corta la jugada de ${atacNom} con falta (${fmtDuelo(res, true)})${armaMsg}`;
+        clase = 'parada';
+      } else if (res.gana) {
+        texto = `${atacNom} gana la jugada con ${statAt} pero ${defNom} evita el gol (${fmtDuelo(res, true)})${armaMsg}`;
+        clase = res.armaDef ? 'arma' : '';
+      } else {
+        texto = `${defNom} recupera ante ${atacNom} (${fmtDuelo(res, true)})${armaMsg}`;
+        clase = res.armaDef ? 'arma' : 'parada';
+      }
+    }
+
+    document.getElementById('partido-goles-local').textContent = String(partidoGolesLocal);
+    document.getElementById('partido-goles-visit').textContent = String(partidoGolesVisit);
+    const resultadoEl = document.getElementById('partido-resultado');
+    if (resultadoEl) {
+      resultadoEl.innerHTML = texto;
+      resultadoEl.className = 'partido-resultado ' + clase;
+    }
+    escribirLogPartido(`${turno.minuto}' · ${texto}`, clase);
+    const opcionesEl = document.getElementById('partido-opciones');
+    if (opcionesEl) opcionesEl.innerHTML = '';
+    setTimeout(() => {
+      partidoTurno++;
+      mostrarTurnoActual();
+    }, 900);
+  };
+
+  window.iniciarJornada = function () {
+    const saved = localStorage.getItem('blue_lock_save');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    const { temporada, liga } = getTemporada(data);
+    if (!liga) return;
+    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    const ligaKey = liga.nombre;
+    const eqManager = NEO_EQUIPOS.find(e => e.name === data.manager.equipo);
+    if (!eqManager) return;
+    const calendario = temporada.calendario[ligaKey];
+    if (!calendario || temporada.jornadaActual >= calendario.length) {
+      mostrarModal('TEMPORADA COMPLETA', '¡Has completado todas las jornadas de la liga! La temporada ha terminado.');
+      return;
+    }
+
+    const jornada = calendario[temporada.jornadaActual];
+    const partidoUsuario = jornada.find(([l, v]) => l === eqManager.id || v === eqManager.id);
+    if (!partidoUsuario) return;
+
+    const resultadosFondo = [];
+    jornada.forEach(([l, v]) => {
+      if (l === eqManager.id || v === eqManager.id) return;
+      const ln = nombreEquipoPorId(l);
+      const vn = nombreEquipoPorId(v);
+      const [gl, gv] = simularPartidoFondo(ln, vn);
+      resultadosFondo.push({ l, v, gl, gv });
+      aplicarResultado(temporada.clasificacion, l, v, gl, gv);
+      descontarEstaminaEquipoNPC(data, l);
+      descontarEstaminaEquipoNPC(data, v);
+    });
+
+    const esLocal = partidoUsuario[0] === eqManager.id;
+    const rivalId = esLocal ? partidoUsuario[1] : partidoUsuario[0];
+    const rivalNombre = nombreEquipoPorId(rivalId);
+
+    partidoTurno = 0;
+    partidoGolesLocal = 0;
+    partidoGolesVisit = 0;
+    partidoCtx = { data, temporada, esLocal, eqManager, rivalId, rivalNombre, partidoUsuario, resultadosFondo, turnoActual: null };
+
+    document.getElementById('partido-jornada').textContent = `JORNADA ${temporada.jornadaActual + 1} · ${liga.nombre}`;
+    document.getElementById('partido-nombre-local').textContent = nombreEquipoPorId(partidoUsuario[0]);
+    document.getElementById('partido-nombre-visit').textContent = nombreEquipoPorId(partidoUsuario[1]);
+    document.getElementById('partido-escudo-local').innerHTML = escudoHtmlPartido(partidoUsuario[0]);
+    document.getElementById('partido-escudo-visit').innerHTML = escudoHtmlPartido(partidoUsuario[1]);
+    document.getElementById('partido-goles-local').textContent = '0';
+    document.getElementById('partido-goles-visit').textContent = '0';
+    document.getElementById('partido-log').innerHTML = '';
+    document.getElementById('partido-btn-fin').style.display = 'none';
+    document.getElementById('partido-resultado').innerHTML = '';
+    showScreen('screen-partido');
+    mostrarTurnoActual();
+  };
+
+  window.actualizarTablaClasificacion = function () {
+    const saved = localStorage.getItem('blue_lock_save');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    gameState.estadoTemporada = data.manager.temporada;
+    renderClasificacion();
+  };
+
   window.jugarProximoPartido = function () {
     const saved = localStorage.getItem('blue_lock_save');
     if (!saved) return;
     const data = JSON.parse(saved);
-    if (data.tipo === 'manager' && data.manager) {
-      avanzarSemana();
+    if (data.tipo !== 'manager' || !data.manager) {
+      mostrarModal('MODO JUGADOR', 'La simulación de partidos está disponible solo en el Modo Carrera (Manager).');
+      return;
     }
-    mostrarModal('PRÓXIMAMENTE', 'El simulador de partidos estará disponible en la próxima actualización.');
-    reprobarGol();
+    iniciarJornada();
   };
 
   function mostrarProgresoSemanal(resultado) {
@@ -1901,7 +3067,58 @@ document.addEventListener('DOMContentLoaded', () => {
       return `<div class="pfila-stat ficha-stat-box"><span>${etiqueta}</span>${valor}</div>`;
     }
 
+    const grlFicha = calcularGrlJugador(jug);
+
+    const armas = (typeof ARMAS_DATABASE !== 'undefined') ? ARMAS_DATABASE[jug.id] : null;
+    let bloqueArma = '';
+    if (armas && armas.length) {
+      const etiquetas = { pac: 'PAC', sho: 'SHO', pas: 'PAS', dri: 'DRI', def: 'DEF', phy: 'PHY' };
+      const headerArma = armas.length > 1 ? 'ARMAS' : 'ARMA PRINCIPAL';
+      const tarjetas = armas.map(a => {
+        const efectos = Object.entries(a.stats || {})
+          .map(([st, bonus]) => `<span class="ficha-arma-efecto">+${bonus} en ${etiquetas[st] || st.toUpperCase()}</span>`)
+          .join('');
+        return `
+        <div class="ficha-arma">
+          <div class="ficha-arma-nombre">${a.name}</div>
+          <div class="ficha-arma-efectos">${efectos}</div>
+          <div class="ficha-arma-desc">${a.desc}</div>
+        </div>`;
+      }).join('');
+      bloqueArma = `
+      <div class="ficha-armas">
+        <div class="ficha-arma-header"><i class="fas fa-crosshairs"></i> ${headerArma}</div>
+        ${tarjetas}
+      </div>`;
+    }
+
+    let btnOferta = '';
+    try {
+      const saved = localStorage.getItem('blue_lock_save');
+      if (saved && jugadorId !== 'player') {
+        const data = JSON.parse(saved);
+        if (data.tipo === 'manager' && data.manager) {
+          const propios = new Set(getPlantillaEquipo(data.manager.equipo).map(p => p.id));
+          if (propios.has(jug.id)) {
+            btnOferta = `<button class="ficha-oferta-btn vender" onclick="venderJugador('${jugadorId}')">
+              <i class="fas fa-tag"></i> OFERECER A EQUIPOS
+            </button>`;
+          } else {
+            const presupuesto = data.manager.presupuesto ?? getPresupuestoManager();
+            const valor = calcularValor(grlFicha, jug);
+            const puede = presupuesto >= valor;
+            btnOferta = `<button class="ficha-oferta-btn ${puede ? '' : 'disabled'}" ${puede ? '' : 'disabled'} onclick="ficharJugador('${jugadorId}')">
+              <i class="fas fa-handshake"></i> ${puede ? 'REALIZAR OFERTA' : 'PRESUPUESTO INSUFICIENTE'}
+            </button>`;
+          }
+        }
+      }
+    } catch (e) {
+      btnOferta = '';
+    }
+
     const fotoSrc = jug.foto || 'assets/players/default.png';
+    const tieneLogoClub = !!escudoEquipoPorNombre(jug.equipo);
     document.getElementById('ficha-content').innerHTML = `
       <div class="ficha-header"><span>BLUE LOCK PROJECT</span></div>
       <div class="ficha-top">
@@ -1923,6 +3140,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="ficha-value">${jug.edad}</div>
           </div>
           <div class="ficha-row">
+            <div class="ficha-label">VALOR</div>
+            <div class="ficha-value">${formatearYenes(calcularValor(grlFicha, jug))}</div>
+          </div>
+          <div class="ficha-row">
             <div class="ficha-label">POSITION</div>
             <div class="ficha-value">${jug.posicion}</div>
           </div>
@@ -1939,18 +3160,25 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="ficha-value">${jug.pie}</div>
           </div>
         </div>
-        <div class="ficha-photo">
-          <img src="${fotoSrc}" onerror="this.onerror=null;this.src='assets/players/default.png'" alt="${jug.nombre}">
+        <div class="ficha-side">
+          <div class="ficha-photo">
+            <img src="${fotoSrc}" onerror="this.onerror=null;this.style.display='none'" alt="${jug.nombre}">
+            <i class="fas fa-user ficha-photo-fallback"></i>
+          </div>
+          <div class="ficha-club-emblem ${tieneLogoClub ? '' : 'con-forma'}">
+            ${htmlEscudoEquipo(jug.equipo)}
+          </div>
+          <div class="ficha-club-name">${jug.equipo || '—'}</div>
+          <div class="ficha-club-grl">${grlFicha}</div>
         </div>
       </div>
       <div class="ficha-stats-grid ficha-stats-6">
-        ${cuadrito('PAC', jug.pac || 60)}
-        ${cuadrito('SHO', jug.tiro)}
-        ${cuadrito('PAS', jug.pase)}
-        ${cuadrito('DRI', jug.regate)}
-        ${cuadrito('DEF', jug.defensa)}
-        ${cuadrito('PHY', jug.phy || 60)}
+        ${jug.posicion === 'POR'
+          ? `${cuadrito('DIV', jug.div || 60)}${cuadrito('HAN', jug.han || 60)}${cuadrito('KIC', jug.kic || 60)}${cuadrito('REF', jug.ref || 60)}${cuadrito('SPD', jug.spd || 60)}${cuadrito('POS', jug.pos || 60)}`
+          : `${cuadrito('PAC', jug.pac || 60)}${cuadrito('SHO', jug.tiro)}${cuadrito('PAS', jug.pase)}${cuadrito('DRI', jug.regate)}${cuadrito('DEF', jug.defensa)}${cuadrito('PHY', jug.phy || 60)}`}
       </div>
+      ${bloqueArma}
+      ${btnOferta}
     `;
     document.getElementById('ficha-modal-overlay').classList.add('active');
   };
@@ -2143,6 +3371,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Formulario: Iniciar Carrera (Manager)
+  const nombreManagerInput = document.getElementById('input-nombre-manager');
+  if (nombreManagerInput) {
+    nombreManagerInput.addEventListener('input', function () {
+      actualizarEstadoIniciarCarrera();
+    });
+  }
   document.getElementById('form-modo-manager').addEventListener('submit', function (e) {
     e.preventDefault();
     const nombre = document.getElementById('input-nombre-manager').value.trim();
@@ -2170,7 +3404,8 @@ document.addEventListener('DOMContentLoaded', () => {
       monedas: gameState.monedas,
       gemas: gameState.gemas,
       manager: {
-        nombre, equipo
+        nombre, equipo,
+        buzon: { mensajes: [mensajeEgoBienvenida(equipo)] }
       },
       fechaCreacion: new Date().toISOString()
     };

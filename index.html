@@ -189,12 +189,8 @@
             <div class="form-group">
               <label>Equipo Base</label>
               <div id="team-selector">
-                <div class="div-tabs">
-                  <button class="div-tab active" data-div="primera" onclick="cambiarDivision('primera')">🏆 1ª DIVISIÓN</button>
-                  <button class="div-tab" data-div="segunda" onclick="cambiarDivision('segunda')">🎓 2ª DIVISIÓN</button>
-                </div>
-                <div class="neo-league-sub">LIGA NEO EGOTÍSTA</div>
-                <div class="ts-grid" id="ts-equipos"></div>
+                <div class="ts-selector-tip">Toca un país para ver sus ligas y equipos</div>
+                <div id="ts-selector-arbol"></div>
                 <div id="ts-selected-name" style="display:none;margin-top:8px;padding:8px 12px;background:var(--bg-card);border:1px solid var(--bg-card-border);border-radius:6px;">
                   <span style="font-size:0.8rem;color:var(--text-muted);">EQUIPO SELECCIONADO:</span>
                   <span id="ts-equipo-label" style="display:block;font-size:1rem;font-weight:800;color:var(--blue-lock-cyan);"></span>
@@ -208,6 +204,20 @@
             <i class="fas fa-fire"></i> INICIAR CARRERA
           </button>
         </div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 3A-BIS: LIGAS Y EQUIPOS DE UN PAÍS -->
+    <section id="screen-pais-ligas" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2 id="ts-pais-titulo">PAÍS</h2>
+          <span id="ts-pais-sub" style="color:var(--blue-lock-cyan); font-weight:700;"></span>
+        </div>
+        <div id="ts-ligas-container" style="display:flex; flex-direction:column; gap:12px;"></div>
       </div>
     </section>
 
@@ -243,6 +253,10 @@
             <i class="fas fa-table"></i>
             <span>CLASIFICACIÓN</span>
           </button>
+          <button class="btn-bluelock hub-nav-btn" onclick="renderCalendario(); showScreen('screen-calendario')">
+            <i class="fas fa-calendar-days"></i>
+            <span>CALENDARIO</span>
+          </button>
           <button class="btn-bluelock hub-nav-btn" onclick="renderTactica(); showScreen('screen-tactica')">
             <i class="fas fa-chess-board"></i>
             <span>TÁCTICA</span>
@@ -250,6 +264,11 @@
           <button class="btn-bluelock hub-nav-btn" onclick="renderMercado(); showScreen('screen-mercado')">
             <i class="fas fa-cart-shopping"></i>
             <span>MERCADO</span>
+          </button>
+          <button class="btn-bluelock hub-nav-btn" id="hub-btn-buzon" onclick="renderBuzon(); showScreen('screen-buzon')">
+            <i class="fas fa-envelope"></i>
+            <span>BANDEJA</span>
+            <span class="buzon-badge" id="buzon-badge" style="display:none;">0</span>
           </button>
           <button class="btn-bluelock hub-nav-btn" onclick="showScreen('screen-ajustes')">
             <i class="fas fa-cog"></i>
@@ -259,6 +278,38 @@
         <button class="btn-bluelock btn-gold" style="width:100%; justify-content:center; margin-top:12px;" onclick="jugarProximoPartido()">
           <i class="fas fa-fire"></i> JUGAR PRÓXIMO PARTIDO
         </button>
+      </div>
+    </section>
+
+    <!-- PANTALLA 3C: PARTIDO EN VIVO -->
+    <section id="screen-partido" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="cancelarSimulacionPartido()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="partido-jornada" id="partido-jornada"></div>
+        <div class="partido-marcador" id="partido-marcador">
+          <div class="partido-equipo">
+            <span class="partido-escudo" id="partido-escudo-local"></span>
+            <span class="partido-nombre" id="partido-nombre-local">LOCAL</span>
+          </div>
+          <div class="partido-score">
+            <span id="partido-goles-local">0</span><span class="partido-sep">-</span><span id="partido-goles-visit">0</span>
+          </div>
+          <div class="partido-equipo">
+            <span class="partido-escudo" id="partido-escudo-visit"></span>
+            <span class="partido-nombre" id="partido-nombre-visit">VISITANTE</span>
+          </div>
+        </div>
+        <div class="partido-minuto" id="partido-minuto">0'</div>
+        <div id="partido-turno"></div>
+        <div id="partido-opciones"></div>
+        <div id="partido-resultado"></div>
+        <div id="partido-log"></div>
+        <div id="partido-btn-fin" style="display:none; margin-top:12px;">
+          <button class="btn-bluelock btn-gold" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="verClasificacionTrasPartido()"><i class="fas fa-table"></i> VER CLASIFICACIÓN</button>
+          <button class="btn-bluelock" style="width:100%;justify-content:center;" onclick="volverAlHubTrasPartido()"><i class="fas fa-home"></i> VOLVER AL HUB</button>
+        </div>
       </div>
     </section>
 
@@ -304,11 +355,21 @@
         <div class="section-header">
           <h2>CLASIFICACIÓN</h2>
         </div>
-        <div class="div-tabs" id="clasificacion-tabs">
-          <button class="div-tab active" data-div="primera" onclick="cambiarClasificacionDiv('primera')">🏆 LIGA NEO EGOTÍSTA</button>
-          <button class="div-tab" data-div="segunda" onclick="cambiarClasificacionDiv('segunda')">🎓 LIGA NACIONAL JAPONESA</button>
+        <div id="clasificacion-arbol" style="width:100%;"></div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 4C-BIS: CALENDARIO -->
+    <section id="screen-calendario" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>CALENDARIO</h2>
+          <span id="calendario-liga" style="color:var(--blue-lock-cyan); font-weight:700;"></span>
         </div>
-        <div id="clasificacion-tabla" style="width:100%;"></div>
+        <div id="calendario-lista" style="display:flex; flex-direction:column; gap:10px;"></div>
       </div>
     </section>
 
@@ -329,6 +390,13 @@
           <button class="tactica-formation-btn" data-form="4-1-4-1" onclick="cambiarFormacion('4-1-4-1')">4-1-4-1</button>
           <button class="tactica-formation-btn" data-form="4-2-3-1" onclick="cambiarFormacion('4-2-3-1')" title="Racional - Doble pivote con enganche (Bastard München)">4-2-3-1</button>
           <button class="tactica-formation-btn" data-form="3-4-3" onclick="cambiarFormacion('3-4-3')" title="Egoísta - Ataque total sin laterales (Blue Lock Eleven)">3-4-3</button>
+          <button class="tactica-formation-btn" data-form="5-2-3" onclick="cambiarFormacion('5-2-3')">5-2-3</button>
+          <button class="tactica-formation-btn" data-form="4-3-1-2" onclick="cambiarFormacion('4-3-1-2')">4-3-1-2</button>
+          <button class="tactica-formation-btn" data-form="5-3-2" onclick="cambiarFormacion('5-3-2')">5-3-2</button>
+          <button class="tactica-formation-btn" data-form="3-4-2-1" onclick="cambiarFormacion('3-4-2-1')">3-4-2-1</button>
+          <button class="tactica-formation-btn" data-form="4-2-2-2" onclick="cambiarFormacion('4-2-2-2')">4-2-2-2</button>
+          <button class="tactica-formation-btn" data-form="4-5-1" onclick="cambiarFormacion('4-5-1')">4-5-1</button>
+          <button class="tactica-formation-btn" data-form="4-3-2-1" onclick="cambiarFormacion('4-3-2-1')">4-3-2-1</button>
         </div>
         <div class="tactica-pitch" id="tactica-pitch"></div>
         <h4 style="font-size:0.8rem;color:var(--text-muted);margin:8px 0 4px;text-transform:uppercase;">SUPLENTES</h4>
@@ -347,7 +415,7 @@
       <div class="scroll-content">
         <div class="section-header">
           <h2>MERCADO DE FICHAJES</h2>
-          <span style="color:var(--gold-ego); font-weight:700;">🪙 <span id="mercado-presupuesto">0</span></span>
+          <span style="color:var(--gold-ego); font-weight:700;">¥ <span id="mercado-presupuesto">0</span></span>
         </div>
         <div class="mercado-filtros">
           <input type="text" id="mercado-buscar" class="mercado-input" placeholder="Buscar jugador..." oninput="filtrarMercado()">
@@ -381,8 +449,9 @@
               </button>
               <div class="mercado-drop-panel" id="mercado-division-panel">
                 <button class="mercado-opt active" data-val="" onclick="setFiltroMercado('division','')">Todas</button>
-                <button class="mercado-opt" data-val="primera" onclick="setFiltroMercado('division','primera')">1.ª División Neo Egoísta</button>
-                <button class="mercado-opt" data-val="segunda" onclick="setFiltroMercado('division','segunda')">2.ª División Institutos</button>
+                <button class="mercado-opt" data-val="primera" onclick="setFiltroMercado('division','primera')">LIGA NEL</button>
+                <button class="mercado-opt" data-val="segunda" onclick="setFiltroMercado('division','segunda')">LIGA PRO</button>
+                <button class="mercado-opt" data-val="institutos" onclick="setFiltroMercado('division','institutos')">INSTITUTOS</button>
               </div>
             </div>
             <div class="mercado-dropdown" id="dd-orden">
@@ -470,6 +539,20 @@
             <i class="fas fa-trash"></i> BORRAR DATOS GUARDADOS
           </button>
         </div>
+      </div>
+    </section>
+
+    <!-- PANTALLA 7: BANDEJA DE ENTRADA -->
+    <section id="screen-buzon" class="screen">
+      <div class="screen-top-bar">
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+      </div>
+      <div class="scroll-content">
+        <div class="section-header">
+          <h2>BANDEJA DE ENTRADA</h2>
+        </div>
+        <div id="buzon-lista" style="display:flex; flex-direction:column; gap:8px;"></div>
+        <div id="buzon-detalle" style="display:none; margin-top:10px;"></div>
       </div>
     </section>
 
