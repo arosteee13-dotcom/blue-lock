@@ -1635,6 +1635,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function htmlEscudoEquipo(nombre) {
+    if (nombre === 'Agente Libre') {
+      return '<i class="fas fa-shield-halved"></i>';
+    }
     const escudo = escudoEquipoPorNombre(nombre);
     if (escudo) return `<img src="${escudo}" onerror="this.onerror=null;this.outerHTML='<i class=&quot;fas fa-shield-halved&quot;></i>';" alt="${nombre || ''}">`;
     let teamId = null;
@@ -1952,6 +1955,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!j) return j;
     if (!j.foto) j.foto = `assets/players/${j.id}.png`;
     if (typeof j.estamina !== 'number') j.estamina = 100;
+    if (typeof j.agenteLibre !== 'boolean') j.agenteLibre = false;
     if (j.pierna) j.pie = j.pierna;
     if (j.altura && typeof j.altura === 'string') j.altura = parseInt(j.altura) || j.altura;
     if (j.stats) {
@@ -2077,6 +2081,9 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="pfila-info">
         <span class="pfila-name">${jug.nombre}</span>
         <span class="pfila-meta"><span class="${posColor(jug.posicion)}">${jug.posicion}</span> · ${jug.edad} años</span>
+        ${jug.agenteLibre
+          ? '<span class="pfila-valor gratis">GRATIS</span>'
+          : `<span class="pfila-valor">${formatearYenes(calcularValor(grl, jug))}</span>`}
       </div>
       <div class="pfila-stats">
         <div class="pfila-stat"><span>SHO</span>${jug.tiro}</div>
@@ -2107,7 +2114,9 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="pfila-info">
         <span class="pfila-name">${jug.nombre}</span>
         <span class="pfila-meta"><span class="${posColor(jug.posicion)}">${jug.posicion}</span> · ${jug.edad} años</span>
-        <span class="pfila-valor">${formatearYenes(calcularValor(grl, jug))}</span>
+        ${jug.agenteLibre
+          ? '<span class="pfila-valor gratis">GRATIS</span>'
+          : `<span class="pfila-valor">${formatearYenes(calcularValor(grl, jug))}</span>`}
       </div>
       <div class="pfila-extra">
         <span class="pfila-club-logo ${tieneLogoClub ? '' : 'con-forma'}">
@@ -2474,6 +2483,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ===== MERCADO DE FICHAJES =====
   function calcularValor(grl, jug) {
+    if (jug && typeof jug.valor === 'number') {
+      return jug.valor;
+    }
     if (jug && typeof VALORES_JUGADOR !== 'undefined' && VALORES_JUGADOR[jug.id]) {
       return VALORES_JUGADOR[jug.id];
     }
@@ -2542,10 +2554,23 @@ document.addEventListener('DOMContentLoaded', () => {
         PLANTILLAS_EQUIPO[key].forEach(p => lista.push(normalizarJugador(p)));
       }
     }
+    if (typeof AGENTES_LIBRES !== 'undefined') {
+      AGENTES_LIBRES.forEach(p => lista.push(normalizarJugador({ ...p })));
+    }
     return lista;
   }
 
   let mercadoFiltro = { posicion: '', division: '', orden: 'grl' };
+  let mercadoVista = 'fichajes';
+
+  window.cambiarMercadoVista = function (vista) {
+    mercadoVista = vista === 'agentes' ? 'agentes' : 'fichajes';
+    const tabF = document.getElementById('tab-fichajes');
+    const tabA = document.getElementById('tab-agentes');
+    if (tabF) tabF.classList.toggle('active', mercadoVista === 'fichajes');
+    if (tabA) tabA.classList.toggle('active', mercadoVista === 'agentes');
+    filtrarMercado();
+  };
 
   const MERCADO_LABELS = {
     posicion: {
@@ -2627,8 +2652,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const base = getPlantillaEquipo(equipo);
     const idsPropios = new Set(base.map(p => p.id));
+    const vendidos = data.manager.vendidos || [];
 
-    let jugadores = todosLosJugadores().filter(p => !idsPropios.has(p.id));
+    let jugadores = todosLosJugadores().filter(p => !idsPropios.has(p.id) && !vendidos.includes(p.id));
+
+    if (mercadoVista === 'agentes') {
+      jugadores = jugadores.filter(p => p.agenteLibre === true);
+    } else {
+      jugadores = jugadores.filter(p => p.agenteLibre !== true);
+    }
 
     const texto = (document.getElementById('mercado-buscar')?.value || '').trim().toLowerCase();
     if (texto) jugadores = jugadores.filter(p => p.nombre.toLowerCase().includes(texto));
@@ -2686,7 +2718,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const jug = todosLosJugadores().find(p => p.id === jugadorId);
     if (!jug) return;
     const grl = calcularGrlJugador(jug);
-    const valor = calcularValor(grl, jug);
+    const esAgente = jug.agenteLibre === true;
+    const valor = esAgente ? 0 : calcularValor(grl, jug);
+
+    // Límite de plantilla: 22 jugadores
+    const plantillaActual = getPlantillaEquipo(data.manager.equipo);
+    if (plantillaActual.length >= 22) {
+      mostrarModal('PLANTILLA LLENA', 'Tu plantilla tiene el máximo de 22 jugadores. Vende o ofrece a algún jugador antes de fichar a otro.');
+      return;
+    }
 
     if (presupuesto < valor) {
       mostrarModal('PRESUPUESTO INSUFICIENTE', `No tienes fondos suficientes para fichar a ${jug.nombre} (necesitas ${formatearYenes(valor)}).`);
@@ -2697,10 +2737,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!data.manager.fichajes) data.manager.fichajes = [];
     const nuevo = { ...jug, equipo: data.manager.equipo };
     data.manager.fichajes.push(nuevo);
+    if (esAgente) {
+      if (!data.manager.vendidos) data.manager.vendidos = [];
+      if (!data.manager.vendidos.includes(jugadorId)) data.manager.vendidos.push(jugadorId);
+    }
     localStorage.setItem('blue_lock_save', JSON.stringify(data));
 
     document.getElementById('mercado-presupuesto').textContent = formatearYenes(data.manager.presupuesto);
-    mostrarModal('¡FICHAJE COMPLETADO!', `¡Fichaje de ${jug.nombre} completado! Ha sido añadido a tu plantilla.`);
+    mostrarModal('¡FICHAJE COMPLETADO!', `¡Fichaje de ${jug.nombre} completado! Ha sido añadido a tu plantilla${esAgente ? ' (AGENTE LIBRE, gratis)' : ''}.`);
     filtrarMercado();
   };
 
@@ -3326,6 +3370,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (jug) { jug = aplicarEntrenamiento(normalizarJugador(jug)); break; }
         }
       }
+      if (!jug && typeof AGENTES_LIBRES !== 'undefined') {
+        const ag = AGENTES_LIBRES.find(p => p.id === jugadorId);
+        if (ag) jug = normalizarJugador({ ...ag });
+      }
       if (!jug) { cerrarFicha(); return; }
       const extra = FICHA_DATOS[jugadorId] || {};
       jug.altura = jug.altura || extra.altura || 175;
@@ -3371,6 +3419,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (propios.has(jug.id)) {
             btnOferta = `<button class="ficha-oferta-btn vender" onclick="venderJugador('${jugadorId}')">
               <i class="fas fa-tag"></i> OFERECER A EQUIPOS
+            </button>`;
+          } else if (jug.agenteLibre === true) {
+            btnOferta = `<button class="ficha-oferta-btn" onclick="ficharJugador('${jugadorId}')">
+              <i class="fas fa-handshake"></i> FICHAR GRATIS
             </button>`;
           } else {
             const presupuesto = data.manager.presupuesto ?? getPresupuestoManager();

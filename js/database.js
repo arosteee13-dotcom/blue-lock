@@ -487,6 +487,23 @@ function posicionAleatoria() {
   return "MC";
 }
 
+// Once de cada formación (para generar plantillas de 22 duplicando el once)
+const FORMACIONES_ONCE = {
+  "4-3-3": ["POR", "LI", "DFC", "DFC", "LD", "MCD", "MC", "MCO", "EI", "DC", "ED"],
+  "4-4-2": ["POR", "LI", "DFC", "DFC", "LD", "EI", "MC", "MC", "ED", "DC", "DC"],
+  "3-5-2": ["POR", "DFC", "DFC", "DFC", "LI", "MC", "MCD", "MC", "LD", "DC", "DC"],
+  "4-1-4-1": ["POR", "LI", "DFC", "DFC", "LD", "MCD", "EI", "MCO", "MCO", "ED", "DC"],
+  "4-2-3-1": ["POR", "LI", "DFC", "DFC", "LD", "MCD", "MCD", "EI", "MCO", "ED", "DC"],
+  "3-4-3": ["POR", "DFC", "DFC", "DFC", "MI", "MC", "MC", "MD", "EI", "DC", "ED"],
+  "5-2-3": ["POR", "CAD", "DFC", "DFC", "DFC", "CAI", "MCD", "MCD", "EI", "DC", "ED"],
+  "4-3-1-2": ["POR", "LI", "DFC", "DFC", "LD", "MC", "MCD", "MC", "MCO", "DC", "DC"],
+  "5-3-2": ["POR", "CAD", "DFC", "DFC", "DFC", "CAI", "MC", "MCD", "MC", "DC", "DC"],
+  "3-4-2-1": ["POR", "DFC", "DFC", "DFC", "MI", "MC", "MC", "MD", "SD", "SD", "DC"],
+  "4-2-2-2": ["POR", "LI", "DFC", "DFC", "LD", "MCD", "MCD", "MCO", "MCO", "DC", "DC"],
+  "4-5-1": ["POR", "LI", "DFC", "DFC", "LD", "MI", "MC", "MCD", "MC", "MD", "DC"],
+  "4-3-2-1": ["POR", "LI", "DFC", "DFC", "LD", "MCD", "MC", "MCD", "MCO", "MCO", "DC"]
+};
+
 function statsPorPosicion(pos, grl) {
   if (pos === 'POR') {
     const basePOR = { div: 65, han: 60, kic: 50, ref: 60, spd: 55, pos: 60 };
@@ -547,22 +564,38 @@ function dorsalLibre(equipo, usados) {
 
 function generarPlantillaCompleta(teamId) {
   const actuales = (PLANTILLAS_EQUIPO[teamId] || []).slice();
-  const falta = 20 - actuales.length;
+  const formacion = (NEO_EQUIPOS && NEO_EQUIPOS.find(e => e.id === teamId))?.formation || '4-3-3';
+  const once = FORMACIONES_ONCE[formacion] || FORMACIONES_ONCE['4-3-3'];
+  const objetivo = once.concat(once); // 22 jugadores: 11 titulares + 11 suplentes
   const usados = new Set(actuales.map(p => p.dorsal));
   const liga = (typeof DIVISIONES !== 'undefined' && DIVISIONES.primera?.equipos?.includes(teamId))
     ? "Liga Neo Egotísta"
     : "Liga Nacional de Institutos";
-  const nombreEquipo = NOMBRE_EQUIPO[teamId] || teamId;
-  const paisEquipo = PAIS_EQUIPO[teamId] || "Japón";
+  const eqInfo = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.find(e => e.id === teamId) : null;
+  const nombreEquipo = eqInfo?.name || NOMBRE_EQUIPO[teamId] || teamId;
+  const paisEquipo = (eqInfo && eqInfo.domesticLeague && eqInfo.domesticLeague !== 'Institutos')
+    ? eqInfo.domesticLeague
+    : (PAIS_EQUIPO[teamId] || "Japón");
   const rangoGrl = liga === "Liga Neo Egotísta" ? [58, 72] : [50, 66];
 
+  const falta = Math.max(0, 22 - actuales.length);
+
+  // Contar posiciones ya cubiertas por jugadores existentes (solo las de la formación)
+  const contador = {};
+  objetivo.forEach(p => { contador[p] = (contador[p] || 0) + 1; });
+  actuales.forEach(j => {
+    if (contador[j.posicion] > 0) contador[j.posicion]--;
+  });
+
   const nuevos = [];
-  for (let i = 0; i < falta; i++) {
+  objetivo.forEach(posicion => {
+    if (nuevos.length >= falta) return;
+    if (contador[posicion] <= 0) return;
     const dorsal = dorsalLibre(teamId, usados);
     usados.add(dorsal);
     const nacionalidad = elegirNacionalidad(paisEquipo);
-    const posicion = posicionAleatoria();
     const grl = rangoGrl[0] + Math.floor(Math.random() * (rangoGrl[1] - rangoGrl[0] + 1));
+    const pies = ["Derecha", "Derecha", "Derecha", "Derecha", "Izquierda", "Izquierda", "Ambas"];
     nuevos.push({
       id: `${teamId}_npc_${dorsal}`,
       nombre: nombreAleatorio(nacionalidad),
@@ -570,33 +603,27 @@ function generarPlantillaCompleta(teamId) {
       posicion,
       grl,
       edad: 17 + Math.floor(Math.random() * 6),
+      pierna: pies[Math.floor(Math.random() * pies.length)],
       nacionalidad,
       bandera: BANDERAS_PAIS[nacionalidad] || "🌍",
       equipo: nombreEquipo,
       liga,
       stats: statsPorPosicion(posicion, grl)
     });
-  }
+    contador[posicion]--;
+  });
   return nuevos;
 }
-
-(function completarPlantillas() {
-  if (typeof DIVISIONES === 'undefined') return;
-  Object.keys(DIVISIONES).forEach(divKey => {
-    (DIVISIONES[divKey].equipos || []).forEach(teamId => {
-      if (!PLANTILLAS_EQUIPO[teamId]) PLANTILLAS_EQUIPO[teamId] = [];
-      if (PLANTILLAS_EQUIPO[teamId].length < 16) {
-        PLANTILLAS_EQUIPO[teamId] = PLANTILLAS_EQUIPO[teamId].concat(generarPlantillaCompleta(teamId));
-      }
-    });
-  });
-})();
 
 // Inicializar estamina: 100 en todos los jugadores de la base de datos
 (function inicializarEstamina() {
   Object.keys(PLANTILLAS_EQUIPO).forEach(teamId => {
     (PLANTILLAS_EQUIPO[teamId] || []).forEach(p => {
       if (typeof p.estamina !== 'number') p.estamina = 100;
+      if (String(p.id).includes('_npc_') && !p.pierna) {
+        const pies = ["Derecha", "Derecha", "Derecha", "Derecha", "Izquierda", "Izquierda", "Ambas"];
+        p.pierna = pies[Math.floor(Math.random() * pies.length)];
+      }
     });
   });
 })();
@@ -677,6 +704,18 @@ const NEO_EQUIPOS = [
   { id: "senshindo_hs", name: "Instituto Senshindo", domesticLeague: "Institutos", stars: 1, grl: 63, budget: 4000000, formation: "4-4-2", bandera: "🇯🇵", escudo: "", players: [] },
   { id: "aomori_hs", name: "Aomori Dadada", domesticLeague: "Institutos", stars: 1, grl: 63, budget: 4000000, formation: "3-5-2", bandera: "🇯🇵", escudo: "", players: [] }
 ];
+
+(function completarPlantillas() {
+  if (typeof DIVISIONES === 'undefined') return;
+  Object.keys(DIVISIONES).forEach(divKey => {
+    (DIVISIONES[divKey].equipos || []).forEach(teamId => {
+      if (!PLANTILLAS_EQUIPO[teamId]) PLANTILLAS_EQUIPO[teamId] = [];
+      if (PLANTILLAS_EQUIPO[teamId].length < 22) {
+        PLANTILLAS_EQUIPO[teamId] = PLANTILLAS_EQUIPO[teamId].concat(generarPlantillaCompleta(teamId));
+      }
+    });
+  });
+})();
 
 // Derivar players desde PLANTILLAS_EQUIPO (tras completarPlantillas)
 NEO_EQUIPOS.forEach(eq => {
@@ -881,3 +920,25 @@ const ARMAS_DATABASE = {
     { name: "Velocidad y Agilidad", stats: { pac: 10 }, desc: "Aprovecha su ligereza y aceleración para romper la línea defensiva en sprints cortos." }
   ]
 };
+
+// ===== AGENTES LIBRES (jugadores gratis para el Mercado) =====
+const AGENTES_LIBRES = [
+  {
+    id: "ashime_suzuki",
+    nombre: "Ashime Suzuki",
+    instituto: "Desconocido",
+    edad: 17,
+    dorsal: 0,
+    posicion: "DC",
+    grl: 66,
+    altura: "178cm",
+    pierna: "Derecha",
+    nacionalidad: "Japón",
+    bandera: "🇯🇵",
+    equipo: "Agente Libre",
+    liga: "Agente Libre",
+    agenteLibre: true,
+    valor: 5000000,
+    stats: { pac: 73, dri: 70, sho: 74, def: 42, pas: 66, phy: 71 }
+  }
+];
