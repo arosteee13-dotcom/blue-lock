@@ -35,7 +35,7 @@ const PLANTILLAS_EQUIPO = {
     { id: "gagamaru_bm", nombre: "Gin Gagamaru", nombreCompleto: "Gin Gagamaru", instituto: "Tofuku High School", edad: 17, dorsal: 99, posicion: "POR", posicionSecundaria: "DC", grl: 80, altura: "191cm", pierna: "Ambas", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Bastard München", liga: "German Manshaft League", stats: {"div":88,"han":87,"kic":58,"ref":86,"spd":78,"pos":83} },
     { id: "kurona_ranze", nombre: "Ranze Kurona", nombreCompleto: "Ranze Kurona", instituto: "Kanto High School", edad: 16, dorsal: 16, posicion: "CAD", posicionSecundaria: "LD", grl: 83, altura: "168cm", pierna: "Derecha", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Bastard München", liga: "German Manshaft League", stats: { pac: 92, sho: 68, pas: 84, dri: 86, def: 72, phy: 70 } },
     { id: "raichi_bm", nombre: "Jingo Raichi", nombreCompleto: "Jingo Raichi", instituto: "Nagumo High School", edad: 17, dorsal: 22, posicion: "MCD", posicionSecundaria: "MC", grl: 74, altura: "182cm", pierna: "Derecha", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Bastard München", liga: "German Manshaft League", stats: { pac: 72, sho: 60, pas: 70, dri: 66, def: 85, phy: 88 } },
-    { id: "hiori_yo", nombre: "Yo Hiori", nombreCompleto: "Yo Hiori", instituto: "Kansai Youth Academy", edad: 16, dorsal: 23, posicion: "MCO", posicionSecundaria: "CAD", grl: 85, altura: "183cm", pierna: "Izquierda", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Bastard München", liga: "German Manshaft League", stats: { pac: 84, sho: 75, pas: 93, dri: 87, def: 68, phy: 72 } },
+    { id: "hiori_yo", nombre: "Yo Hiori", nombreCompleto: "Yo Hiori", instituto: "Kansai Youth Academy", edad: 16, dorsal: 23, posicion: "MCO", posicionSecundaria: "LI/LD/EI/ED", grl: 85, altura: "183cm", pierna: "Izquierda", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Bastard München", liga: "German Manshaft League", stats: { pac: 84, sho: 75, pas: 93, dri: 87, def: 68, phy: 72 } },
     { id: "kiyora_jin", nombre: "Jin Kiyora", nombreCompleto: "Jin Kiyora", instituto: "Yamashiro High School", edad: 17, dorsal: 69, posicion: "MI", posicionSecundaria: "LI", grl: 80, altura: "165cm", pierna: "Izquierda", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Bastard München", liga: "German Manshaft League", stats: { pac: 83, sho: 72, pas: 80, dri: 82, def: 66, phy: 68 } },
     { id: "igarashi_bm", nombre: "Gurimu Igarashi", nombreCompleto: "Gurimu Igarashi", instituto: "Hosenji High School", edad: 16, dorsal: 76, posicion: "LD", posicionSecundaria: "CAD", grl: 75, altura: "172cm", pierna: "Derecha", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Bastard München", liga: "German Manshaft League", stats: { pac: 72, sho: 60, pas: 68, dri: 65, def: 78, phy: 75 } },
     { id: "neru_teppei", nombre: "Teppei Neru", nombreCompleto: "Teppei Neru", instituto: "Japan Sub-20", edad: 19, dorsal: 0, posicion: "LD", posicionSecundaria: "CAD", grl: 78, altura: "168cm", pierna: "Derecha", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Bastard München", liga: "German Manshaft League", stats: { pac: 90, sho: 58, pas: 70, dri: 74, def: 76, phy: 72 } },
@@ -100,7 +100,7 @@ const PLANTILLAS_EQUIPO = {
     {"id":"don_lorenzo","nombre":"Don Lorenzo","instituto":"Ubers Youth","edad":19,"dorsal":23,"posicion":"DFC","grl":94,"nacionalidad":"España","bandera":"🇪🇸","equipo":"Ubers FC","liga":"Liga Neo Egotísta","stats":{"pac":86,"sho":70,"pas":88,"dri":92,"def":97,"phy":89}},
     {"id":"barou_ubers","nombre":"Shoei Barou","instituto":"Instituto Akudo","edad":18,"dorsal":10,"posicion":"DC","grl":92,"nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Ubers FC","liga":"Liga Neo Egotísta","stats":{"pac":84,"sho":95,"pas":72,"dri":85,"def":48,"phy":96}},
     {"id":"oliver_aiku","nombre":"Oliver Aiku","instituto":"Ubers Youth","edad":19,"dorsal":3,"posicion":"DFC","grl":88,"nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Ubers FC","liga":"Liga Neo Egotísta","stats":{"pac":80,"sho":72,"pas":82,"dri":78,"def":91,"phy":88}},
-    {"id":"ikki_niko","nombre":"Ikki Niko","instituto":"Kansai Youth Academy","edad":15,"dorsal":4,"posicion":"DFC","grl":85,"nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Ubers FC","liga":"Liga Neo Egotísta","stats":{"pac":76,"sho":70,"pas":85,"dri":80,"def":88,"phy":76}},
+    {"id":"ikki_niko","nombre":"Ikki Niko","instituto":"Academia Wasurenagusa Gakuen","edad":15,"dorsal":4,"posicion":"DFC","posicionSec":"MCD","grl":67,"altura":"173cm","pierna":"Derecho","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Ubers FC","liga":"Liga Neo Egotísta","stats":{"pac":62,"sho":50,"pas":78,"dri":68,"def":81,"phy":65}},
     {"id":"jyubei_aryu","nombre":"Jyubei Aryu","instituto":"Instituto Gokou","edad":18,"dorsal":5,"posicion":"DFC","grl":84,"nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Ubers FC","liga":"Liga Neo Egotísta","stats":{"pac":74,"sho":68,"pas":72,"dri":70,"def":87,"phy":92}},
     {"id":"shuuto_sendou","nombre":"Shuuto Sendou","instituto":"Ubers Youth","edad":18,"dorsal":9,"posicion":"SD","grl":82,"nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Ubers FC","liga":"Liga Neo Egotísta","stats":{"pac":80,"sho":84,"pas":76,"dri":79,"def":52,"phy":80}},
     {"id":"gen_fukaku","nombre":"Gen Fukaku","instituto":"Ubers Youth","edad":19,"dorsal":1,"posicion":"POR","grl":77,"nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Ubers FC","liga":"Liga Neo Egotísta","stats":{"div":86,"han":85,"kic":54,"ref":84,"spd":74,"pos":80}},
@@ -253,6 +253,9 @@ const PLANTILLAS_EQUIPO = {
     {"id":"aomori_npc_08","nombre":"Sho Yamamoto","dorsal":8,"posicion":"MCD","grl":62,"edad":16,"nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Aomori Dadada","liga":"Liga Nacional de Institutos","stats":{"pac": 59, "sho": 51, "pas": 66, "dri": 59, "def": 69, "phy": 66}},
     {"id":"aomori_npc_09","nombre":"Kaito Nakamura","dorsal":9,"posicion":"MC","grl":63,"edad":17,"nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Aomori Dadada","liga":"Liga Nacional de Institutos","stats":{"pac": 62, "sho": 60, "pas": 70, "dri": 65, "def": 59, "phy": 60}},
     {"id":"aomori_npc_10","nombre":"Takuya Sato","dorsal":10,"posicion":"MCO","grl":64,"edad":18,"nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Aomori Dadada","liga":"Liga Nacional de Institutos","stats":{"pac": 63, "sho": 68, "pas": 73, "dri": 71, "def": 51, "phy": 55}}
+  ],
+  sennou_hs: [
+    {"id":"hibiki_ookawa","nombre":"Hibiki Ookawa","instituto":"Instituto Sennou","edad":18,"dorsal":9,"posicion":"DC","grl":61,"altura":"177cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"Instituto Sennou","liga":"Liga Nacional de Institutos","stats":{"pac":71,"sho":78,"pas":58,"dri":63,"def":25,"phy":72},"estamina":100}
   ]
 };
 
@@ -284,7 +287,7 @@ const DIVISIONES = {
     nombre: "TORNEO NACIONAL DE INSTITUTOS",
     equipos: [
       "ichinan_hs", "matsukaze_hs", "kitsunezaka_hs", "kanau_academy",
-      "gunma_hs", "saitama_hs", "senshindo_hs", "aomori_hs"
+      "gunma_hs", "saitama_hs", "senshindo_hs", "aomori_hs", "sennou_hs"
     ]
   }
 };
@@ -702,7 +705,8 @@ const NEO_EQUIPOS = [
   { id: "gunma_hs", name: "Instituto Gunma", domesticLeague: "Institutos", stars: 1, grl: 63, budget: 0, formation: "4-5-1", bandera: "🇯🇵", escudo: "", players: [] },
   { id: "saitama_hs", name: "Instituto Saitama", domesticLeague: "Institutos", stars: 1, grl: 63, budget: 0, formation: "4-3-3", bandera: "🇯🇵", escudo: "", players: [] },
   { id: "senshindo_hs", name: "Instituto Senshindo", domesticLeague: "Institutos", stars: 1, grl: 63, budget: 0, formation: "4-4-2", bandera: "🇯🇵", escudo: "", players: [] },
-  { id: "aomori_hs", name: "Aomori Dadada", domesticLeague: "Institutos", stars: 1, grl: 63, budget: 0, formation: "3-5-2", bandera: "🇯🇵", escudo: "", players: [] }
+  { id: "aomori_hs", name: "Aomori Dadada", domesticLeague: "Institutos", stars: 1, grl: 63, budget: 0, formation: "3-5-2", bandera: "🇯🇵", escudo: "", players: [] },
+  { id: "sennou_hs", name: "Instituto Sennou", domesticLeague: "Institutos", stars: 1, grl: 63, budget: 0, formation: "4-3-3", bandera: "🇯🇵", escudo: "", players: [] }
 ];
 
 (function completarPlantillas() {
@@ -808,7 +812,7 @@ const VALORES_JUGADOR = {
   bachira_fcb: 120000000,
   hiori_yo: 230000000,
   agi: 220000000,
-  ikki_niko: 235000000,
+  ikki_niko: 40000000,
   yukimiya_kenyu: 180000000,
   jyubei_aryu: 175000000,
   kurona_ranze: 160000000,
@@ -862,6 +866,7 @@ const VALORES_JUGADOR = {
   ryo_nameoka: 9500000,
   tomonari_tada: 38000000,
   hibiki_okawa: 32000000,
+  hibiki_ookawa: 18000000,
   naruhaya: 22000000,
   imamura: 4000000,
   kuon: 5000000,
@@ -918,6 +923,14 @@ const ARMAS_DATABASE = {
   ],
   imamura: [
     { name: "Velocidad y Agilidad", stats: { pac: 10 }, desc: "Aprovecha su ligereza y aceleración para romper la línea defensiva en sprints cortos." }
+  ],
+  ikki_niko: [
+    { name: "Conciencia espacial", stats: { def: 5 }, desc: "Lee el espacio y anticipa los movimientos rivales para cortar el ataque." },
+    { name: "Posicionamiento defensivo", stats: { phy: 6 }, desc: "Se coloca siempre en la línea correcta, compensando su físico con inteligencia." },
+    { name: "Metavisión", stats: { pas: 8 }, desc: "Procesa toda la información del campo para predecir la jugada y filtrar pases letales." }
+  ],
+  hibiki_ookawa: [
+    { name: "Super disparo", stats: { sho: 6 }, desc: "Remate demoledor y potencia de golpeo." }
   ]
 };
 
@@ -927,10 +940,10 @@ const AGENTES_LIBRES = [
     id: "ashime_suzuki",
     nombre: "Ashime Suzuki",
     instituto: "Desconocido",
-    edad: 17,
-    dorsal: 0,
-    posicion: "DC",
-    grl: 66,
+    edad: 16,
+    dorsal: 2,
+    posicion: "LI",
+    grl: 55,
     altura: "178cm",
     pierna: "Derecha",
     nacionalidad: "Japón",
@@ -938,17 +951,17 @@ const AGENTES_LIBRES = [
     equipo: "Agente Libre",
     liga: "Agente Libre",
     agenteLibre: true,
-    valor: 5000000,
-    stats: { pac: 73, dri: 70, sho: 74, def: 42, pas: 66, phy: 71 }
+    valor: 5500000,
+    stats: { pac: 68, dri: 52, sho: 38, def: 60, pas: 54, phy: 58 }
   },
   {
     id: "fuma_rokkaku",
     nombre: "Fuma Rokkaku",
     instituto: "Desconocido",
-    edad: 17,
-    dorsal: 0,
-    posicion: "DC",
-    grl: 64,
+    edad: 16,
+    dorsal: 8,
+    posicion: "MC",
+    grl: 57,
     altura: "185cm",
     pierna: "Derecha",
     nacionalidad: "Japón",
@@ -957,6 +970,24 @@ const AGENTES_LIBRES = [
     liga: "Agente Libre",
     agenteLibre: true,
     valor: 3500000,
-    stats: { pac: 68, dri: 65, sho: 73, def: 40, pas: 62, phy: 78 }
+    stats: { pac: 64, dri: 53, sho: 45, def: 62, pas: 58, phy: 60 }
+  },
+  {
+    id: "iori_sato_libre",
+    nombre: "Iori Sato",
+    instituto: "Desconocido",
+    edad: 16,
+    dorsal: 5,
+    posicion: "POR",
+    grl: 52,
+    altura: "—",
+    pierna: "Derecho",
+    nacionalidad: "Japón",
+    bandera: "🇯🇵",
+    equipo: "Agente Libre",
+    liga: "Agente Libre",
+    agenteLibre: true,
+    valor: 5400000,
+    stats: { div: 55, han: 52, kic: 50, ref: 58, spd: 45, pos: 54 }
   }
 ];

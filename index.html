@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=20260811-shoot-btn">
   <link rel="icon" href="app_icon.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
@@ -320,6 +320,9 @@
           <button class="btn-bluelock btn-gold" style="width:100%;justify-content:center;" onclick="volverAlHubTrasPartido()"><i class="fas fa-home"></i> CONTINUAR</button>
         </div>
       </div>
+      <div class="fixed-bottom" id="partido-btn-tactica" style="display:none;">
+        <button class="btn-bluelock" style="width:100%;justify-content:center;" onclick="abrirTacticaEnVivo()"><i class="fas fa-sliders-h"></i> TÁCTICA / CAMBIOS</button>
+      </div>
     </section>
 
     <!-- PANTALLA 4: PLANTILLA -->
@@ -405,34 +408,39 @@
     <!-- PANTALLA 4D: TÁCTICA -->
     <section id="screen-tactica" class="screen">
       <div class="screen-top-bar">
-        <button class="back-btn" onclick="guardarAlineacion(); goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
+        <button class="back-btn" onclick="goBack()"><i class="fas fa-arrow-left"></i> VOLVER</button>
       </div>
       <div class="scroll-content">
         <div class="section-header">
           <h2>TÁCTICA</h2>
           <span id="tactica-equipo" style="color:var(--blue-lock-cyan); font-weight:700;"></span>
         </div>
-        <div class="tactica-formation-bar" id="tactica-formation-bar">
-          <button class="tactica-formation-btn active" data-form="4-3-3" onclick="cambiarFormacion('4-3-3')">4-3-3</button>
-          <button class="tactica-formation-btn" data-form="4-4-2" onclick="cambiarFormacion('4-4-2')">4-4-2</button>
-          <button class="tactica-formation-btn" data-form="3-5-2" onclick="cambiarFormacion('3-5-2')">3-5-2</button>
-          <button class="tactica-formation-btn" data-form="4-1-4-1" onclick="cambiarFormacion('4-1-4-1')">4-1-4-1</button>
-          <button class="tactica-formation-btn" data-form="4-2-3-1" onclick="cambiarFormacion('4-2-3-1')" title="Racional - Doble pivote con enganche (Bastard München)">4-2-3-1</button>
-          <button class="tactica-formation-btn" data-form="3-4-3" onclick="cambiarFormacion('3-4-3')" title="Egoísta - Ataque total sin laterales (Blue Lock Eleven)">3-4-3</button>
-          <button class="tactica-formation-btn" data-form="5-2-3" onclick="cambiarFormacion('5-2-3')">5-2-3</button>
-          <button class="tactica-formation-btn" data-form="4-3-1-2" onclick="cambiarFormacion('4-3-1-2')">4-3-1-2</button>
-          <button class="tactica-formation-btn" data-form="5-3-2" onclick="cambiarFormacion('5-3-2')">5-3-2</button>
-          <button class="tactica-formation-btn" data-form="3-4-2-1" onclick="cambiarFormacion('3-4-2-1')">3-4-2-1</button>
-          <button class="tactica-formation-btn" data-form="4-2-2-2" onclick="cambiarFormacion('4-2-2-2')">4-2-2-2</button>
-          <button class="tactica-formation-btn" data-form="4-5-1" onclick="cambiarFormacion('4-5-1')">4-5-1</button>
-          <button class="tactica-formation-btn" data-form="4-3-2-1" onclick="cambiarFormacion('4-3-2-1')">4-3-2-1</button>
+        <div class="tactica-formacion-row">
+          <span class="tactica-formacion-label">FORMACIÓN</span>
+          <div class="mercado-dropdown tactica-formacion-dropdown">
+            <button class="mercado-drop-btn" onclick="toggleFiltroDropdown('formacion')">
+              <span id="tactica-formacion-label">4-3-3</span><i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="mercado-drop-panel" id="mercado-formacion-panel">
+              <button class="mercado-opt" data-val="4-3-3" onclick="cambiarFormacion('4-3-3')">4-3-3</button>
+              <button class="mercado-opt" data-val="4-4-2" onclick="cambiarFormacion('4-4-2')">4-4-2</button>
+              <button class="mercado-opt" data-val="3-5-2" onclick="cambiarFormacion('3-5-2')">3-5-2</button>
+              <button class="mercado-opt" data-val="4-1-4-1" onclick="cambiarFormacion('4-1-4-1')">4-1-4-1</button>
+              <button class="mercado-opt" data-val="4-2-3-1" onclick="cambiarFormacion('4-2-3-1')">4-2-3-1</button>
+              <button class="mercado-opt" data-val="3-4-3" onclick="cambiarFormacion('3-4-3')">3-4-3</button>
+              <button class="mercado-opt" data-val="5-2-3" onclick="cambiarFormacion('5-2-3')">5-2-3</button>
+              <button class="mercado-opt" data-val="4-3-1-2" onclick="cambiarFormacion('4-3-1-2')">4-3-1-2</button>
+              <button class="mercado-opt" data-val="5-3-2" onclick="cambiarFormacion('5-3-2')">5-3-2</button>
+              <button class="mercado-opt" data-val="3-4-2-1" onclick="cambiarFormacion('3-4-2-1')">3-4-2-1</button>
+              <button class="mercado-opt" data-val="4-2-2-2" onclick="cambiarFormacion('4-2-2-2')">4-2-2-2</button>
+              <button class="mercado-opt" data-val="4-5-1" onclick="cambiarFormacion('4-5-1')">4-5-1</button>
+              <button class="mercado-opt" data-val="4-3-2-1" onclick="cambiarFormacion('4-3-2-1')">4-3-2-1</button>
+            </div>
+          </div>
         </div>
         <div class="tactica-pitch" id="tactica-pitch"></div>
         <h4 style="font-size:0.8rem;color:var(--text-muted);margin:8px 0 4px;text-transform:uppercase;">SUPLENTES</h4>
         <div class="tactica-subs-grid" id="tactica-subs"></div>
-        <button class="btn-bluelock btn-gold" style="width:100%;justify-content:center;margin-top:10px;" onclick="guardarAlineacion(); mostrarModal('ALINEACIÓN GUARDADA', 'La formación y los titulares han sido guardados.');">
-          <i class="fas fa-save"></i> GUARDAR ALINEACIÓN
-        </button>
       </div>
     </section>
 

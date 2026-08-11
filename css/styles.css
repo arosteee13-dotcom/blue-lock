@@ -170,6 +170,13 @@ header {
   background: var(--bg-dark);
 }
 
+#partido-btn-tactica .btn-bluelock:disabled {
+  opacity: 0.45;
+  filter: saturate(0.35);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .start-menu {
   flex: 1;
   display: flex;
@@ -188,6 +195,18 @@ header {
 
 .screen.active {
   display: flex;
+  animation: pantallaIn 0.35s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen.active {
+    animation: none;
+  }
+}
+
+@keyframes pantallaIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Hero Title Section in Main Menu */
@@ -851,6 +870,22 @@ header {
   font-weight: 800;
   letter-spacing: 1px;
   line-height: 1.3;
+}
+
+.hub-nav-btn:hover, .hub-nav-btn:active {
+  background: linear-gradient(135deg, #0090ff, #0033aa);
+  border-color: #ffffff;
+  box-shadow: 0 0 24px var(--blue-lock-glow), inset 0 0 18px rgba(0, 243, 255, 0.35);
+  transform: translateY(-3px) scale(1.02);
+}
+
+.hub-nav-btn:hover i {
+  color: #ffffff;
+  text-shadow: 0 0 12px var(--blue-lock-cyan);
+}
+
+.hub-nav-btn:hover span {
+  color: #ffffff;
 }
 
 /* Top Bar Back Button */
@@ -1825,18 +1860,6 @@ header {
   box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.12);
 }
 
-.partido-shoot-btn {
-  border-color: var(--gold-ego);
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 80, 80, 0.15));
-  box-shadow: inset 0 0 14px rgba(255, 215, 0, 0.2);
-  font-size: 0.85rem;
-}
-
-.partido-shoot-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.4), rgba(255, 80, 80, 0.25));
-  border-color: #ffffff;
-}
-
 .partido-arma-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(0, 243, 255, 0.1));
   border-color: #ffffff;
@@ -1892,6 +1915,7 @@ header {
   border-color: var(--gold-ego);
   background: rgba(255, 215, 0, 0.08);
   font-weight: 900;
+  animation: golPulse 0.6s ease-out;
 }
 
 #partido-resultado.parada {
@@ -3102,19 +3126,21 @@ header {
 /* Tactica Subs Grid */
 .tactica-subs-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   margin-bottom: 10px;
 }
 
 .tactica-sub-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  padding: 10px 4px;
+  min-height: 98px;
   background: var(--bg-card);
   border: 1px solid var(--bg-card-border);
   border-radius: 8px;
-  padding: 6px 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -3131,10 +3157,12 @@ header {
 }
 
 .tactica-sub-card .swap-icon {
-  font-size: 0.75rem;
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  font-size: 0.7rem;
   color: var(--blue-lock-cyan);
-  opacity: 0.5;
-  flex-shrink: 0;
+  opacity: 0.55;
 }
 
 /* Ficha Jugador Modal - Estilo Manga BLUE LOCK PROJECT */
@@ -3750,34 +3778,25 @@ header {
 }
 
 /* Tactica Formation Selector */
-.tactica-formation-bar {
+.tactica-formacion-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
-.tactica-formation-btn {
-  flex: 1 1 calc(33.33% - 8px);
-  background: transparent;
-  border: 1px solid var(--bg-card-border);
-  color: var(--text-muted);
-  padding: 8px;
-  font-size: 0.8rem;
+.tactica-formacion-label {
+  font-size: 0.75rem;
   font-weight: 800;
-  font-family: var(--font-family);
-  text-transform: uppercase;
   letter-spacing: 1px;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
-.tactica-formation-btn.active {
-  background: linear-gradient(135deg, rgba(0, 243, 255, 0.2), rgba(0, 85, 255, 0.2));
-  border-color: var(--blue-lock-cyan);
-  color: var(--blue-lock-cyan);
-  box-shadow: 0 0 12px var(--blue-lock-glow);
+.tactica-formacion-dropdown {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Tactica Pitch */
@@ -3846,6 +3865,7 @@ header {
 
 .modal-overlay.active {
   display: flex;
+  animation: modalFadeIn 0.25s ease-out;
 }
 
 .modal-content {
@@ -4507,5 +4527,122 @@ header {
 .slot-btn-delete:hover {
   background: rgba(255, 0, 0, 0.3);
   box-shadow: 0 0 12px rgba(255, 0, 0, 0.4);
+}
+
+/* ===== Animaciones UX ===== */
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-content,
+.ficha-card {
+  animation: modalPopIn 0.28s cubic-bezier(0.2, 0.8, 0.3, 1.15);
+}
+
+@keyframes golPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); box-shadow: 0 0 22px rgba(255, 215, 0, 0.55); }
+  100% { transform: scale(1); }
+}
+
+@keyframes dueloCardIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.duelo-card {
+  animation: dueloCardIn 0.3s ease-out;
+}
+
+@keyframes vsPulse {
+  0%, 100% { transform: scale(1); text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+  50% { transform: scale(1.15); text-shadow: 0 0 18px rgba(255, 215, 0, 0.9); }
+}
+
+.duelo-vs-sep {
+  animation: vsPulse 0.9s ease-out;
+}
+
+@keyframes buzPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+.buzon-badge.buzon-pulse {
+  animation: buzPulse 0.4s ease-out;
+}
+
+@keyframes minutoPulse {
+  0%, 100% { color: var(--danger-red); opacity: 1; }
+  50% { color: #ff5050; opacity: 0.6; }
+}
+
+.partido-minuto.ultimos-minutos {
+  animation: minutoPulse 1s ease-in-out infinite;
+}
+
+@keyframes filaIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.anim-fila {
+  animation: filaIn 0.3s ease-out both;
+}
+
+@keyframes golBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); text-shadow: 0 0 16px rgba(255, 215, 0, 0.9); }
+  100% { transform: scale(1); }
+}
+
+.partido-score .gol-bump {
+  animation: golBump 0.45s ease-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.modal-content.modal-error {
+  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes coinPulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); box-shadow: 0 0 16px rgba(255, 215, 0, 0.5); }
+  100% { transform: scale(1); }
+}
+
+.currency-item.coin-pulse {
+  animation: coinPulse 0.45s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay.active,
+  .modal-content,
+  .ficha-card,
+  #partido-resultado.gol,
+  .duelo-card,
+  .duelo-vs-sep,
+  .buzon-badge.buzon-pulse,
+  .partido-minuto.ultimos-minutos,
+  .anim-fila,
+  .partido-score .gol-bump,
+  .modal-content.modal-error,
+  .currency-item.coin-pulse {
+    animation: none !important;
+  }
 }
 
