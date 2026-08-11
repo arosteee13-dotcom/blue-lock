@@ -521,17 +521,33 @@
           </div>
           <audio id="theme-audio" src="sounds/blue-lock-theme.mp3" loop preload="auto"></audio>
           <audio id="goal-sound" src="sounds/blue-lock-goal-sound-effect.mp3" preload="auto"></audio>
+          <audio id="whistle-sound" src="sounds/blue-lock-whistle.mp3" preload="auto"></audio>
+          <audio id="match-sound" src="sounds/blue-lock-match-start.mp3" loop preload="auto"></audio>
+          <audio id="despair-sound" src="sounds/blue-lock-despair.mp3" loop preload="auto"></audio>
+          <audio id="puzzle-sound" src="sounds/blue-lock-puzzle.mp3" loop preload="auto"></audio>
+          <audio id="inspiration-sound" src="sounds/blue-lock-inspiration.mp3" loop preload="auto"></audio>
+          <audio id="ego-sound" src="sounds/blue-lock-ego.mp3" loop preload="auto"></audio>
+          <audio id="emergency-sound" src="sounds/blue-lock-emergency.mp3" loop preload="auto"></audio>
+          <audio id="last-chance-sound" src="sounds/blue-lock-last-chance.mp3" loop preload="auto"></audio>
+          <audio id="awakening-sound" src="sounds/blue-lock-awakening.mp3" loop preload="auto"></audio>
+          <audio id="intellect-sound" src="sounds/blue-lock-intellect.mp3" loop preload="auto"></audio>
+          <audio id="push-forward-sound" src="sounds/blue-lock-push-forward.mp3" loop preload="auto"></audio>
+          <audio id="bedroom-sound" src="sounds/blue-lock-bedroom.mp3" loop preload="auto"></audio>
           <div class="volume-control">
             <i class="fas fa-volume-low" id="vol-icon"></i>
-            <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.15">
-            <span id="vol-pct">15%</span>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.05" oninput="cambiarVolumenGeneral(this.value)">
+            <span id="vol-pct">5%</span>
           </div>
           <div class="form-group" style="margin-top:10px;">
-            <label><input type="checkbox" checked> Efectos de Sonido (SFX)</label>
+            <div class="sfx-master-row">
+              <span>Efectos de Sonido (SFX)</span>
+              <label class="sfx-toggle-wrap sfx-master">
+                <input type="checkbox" id="checkbox-sfx" class="sfx-toggle" checked onchange="cambiarSfxActivados(this.checked)">
+                <span class="sfx-toggle-slider"></span>
+              </label>
+            </div>
           </div>
-          <button class="btn-bluelock" style="width:100%;justify-content:center;margin-top:8px;" onclick="reprobarGol()">
-            <i class="fas fa-futbol"></i> PROBAR SONIDO DE GOL
-          </button>
+          <div id="contenedor-sfx"></div>
         </div>
         <div class="bl-card">
           <h4 style="color:var(--danger-red); margin-bottom:8px;">Datos de Partida</h4>

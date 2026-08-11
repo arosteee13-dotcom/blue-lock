@@ -417,6 +417,235 @@ header {
   flex-shrink: 0;
 }
 
+/* Lista de Efectos de Sonido (SFX) */
+.sfx-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.sfx-lista.sfx-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Bloques colapsables de la lista SFX */
+.sfx-bloque {
+  background: rgba(7, 24, 46, 0.6);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sfx-bloque summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--blue-lock-cyan);
+  background: rgba(0, 243, 255, 0.04);
+  border-bottom: 1px solid var(--bg-card-border);
+  transition: background 0.2s ease;
+}
+
+.sfx-bloque summary i {
+  color: var(--gold-ego);
+  font-size: 0.9rem;
+}
+
+.sfx-bloque summary .sfx-bloque-titulo {
+  flex: 1;
+}
+
+.sfx-bloque summary::-webkit-details-marker {
+  display: none;
+}
+
+.sfx-bloque summary::after {
+  content: '+';
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--gold-ego);
+  line-height: 1;
+  margin-left: auto;
+}
+
+.sfx-bloque[open] summary::after {
+  content: '−';
+}
+
+.sfx-bloque summary:hover {
+  background: rgba(0, 243, 255, 0.08);
+}
+
+.sfx-bloque-contenido {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.sfx-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(0, 243, 255, 0.03);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.sfx-item.activo {
+  border-color: var(--blue-lock-cyan);
+  box-shadow: 0 0 10px var(--blue-lock-glow);
+}
+
+.sfx-nombre {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-main);
+  flex: 1;
+}
+
+.sfx-botones {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sfx-btn {
+  width: 34px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--blue-lock-cyan);
+  background: rgba(0, 243, 255, 0.08);
+  color: var(--blue-lock-cyan);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sfx-btn:hover:not(:disabled) {
+  background: var(--blue-lock-cyan);
+  color: #000;
+  box-shadow: 0 0 8px var(--blue-lock-glow);
+}
+
+.sfx-btn.parar {
+  border-color: var(--danger-red);
+  color: var(--danger-red);
+  background: rgba(255, 60, 60, 0.08);
+}
+
+.sfx-btn.parar:hover:not(:disabled) {
+  background: var(--danger-red);
+  color: #fff;
+}
+
+.sfx-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Toggle individual SFX (switch) */
+.sfx-toggle-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.sfx-toggle-wrap input.sfx-toggle {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.sfx-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 20px;
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+}
+
+.sfx-toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.sfx-toggle-wrap.on .sfx-toggle-slider {
+  background: rgba(0, 243, 255, 0.35);
+  border-color: var(--blue-lock-cyan);
+}
+
+.sfx-toggle-wrap.on .sfx-toggle-slider::before {
+  transform: translateX(16px);
+  background: var(--blue-lock-cyan);
+  box-shadow: 0 0 6px var(--blue-lock-glow);
+}
+
+.sfx-toggle-wrap.off {
+  opacity: 0.6;
+}
+
+.sfx-toggle-wrap input:disabled + .sfx-toggle-slider {
+  opacity: 0.5;
+}
+
+/* Master SFX usa :checked en vez de clases on/off (se re-renderiza globalmente) */
+.sfx-master-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sfx-master-row .sfx-toggle-wrap {
+  align-self: center;
+  margin-top: 0;
+}
+
+.sfx-toggle:checked + .sfx-toggle-slider {
+  background: rgba(0, 243, 255, 0.35);
+  border-color: var(--blue-lock-cyan);
+}
+
+.sfx-toggle:checked + .sfx-toggle-slider::before {
+  transform: translateX(16px);
+  background: var(--blue-lock-cyan);
+  box-shadow: 0 0 6px var(--blue-lock-glow);
+}
+
 /* Section Title Inside Screens */
 .section-header {
   display: flex;
@@ -1037,6 +1266,15 @@ header {
   font-size: 0.6rem;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+.ts-card .ts-meta .fa-star,
+.ts-card .ts-meta .fa-star-half-stroke,
+#ts-equipo-label .fa-star,
+#ts-equipo-label .fa-star-half-stroke {
+  color: var(--gold-ego);
+  font-size: 0.7rem;
+  margin-right: 1px;
 }
 
 .ts-card .ts-grl {

@@ -18,6 +18,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Audio Global
+  let estadoAudio = {
+    volumenGeneral: 0.05,
+    sfxActivados: true,
+    musicas: {},
+    sonidosSFX: {},
+    sfxReproduciendose: null,
+    sfxIndividuales: { gol: true, arma_ego: true, silbato_arbitro: true, partido: true, tema: true, puzzle: true, despair: true, inspiration: true, intellect: true, push_forward: true, bedroom: true, ego: true, emergency: true, last_chance: true, awakening: true }
+  };
+
   let plantillaSort = { by: 'posicion', asc: true };
   let plantillaVista = 'info';
   let clasificacionPaisesAbiertos = new Set();
@@ -310,6 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.renderBuzon = function () {
+    reproducirMusicaPantalla('bedroom');
     const cont = document.getElementById('buzon-lista');
     if (!cont) return;
     try {
@@ -499,7 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const n = Number(stars) || 0;
     const enteras = Math.floor(n);
     const media = (n % 1) >= 0.5;
-    return '⭐'.repeat(enteras) + (media ? '½' : '');
+    return '<i class="fas fa-star"></i>'.repeat(enteras) + (media ? '<i class="fas fa-star-half-stroke"></i>' : '');
   }
 
   function cardEquipoHtml(eq) {
@@ -526,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const card = document.querySelector(`.ts-card.ts-equipo[onclick*="'${equipoId}'"]`);
     if (card) card.classList.add('selected');
     const grl = typeof eq.grl === 'number' ? ` · GRL ${eq.grl}` : '';
-    document.getElementById('ts-equipo-label').textContent = `${eq.name}${grl} ${formatearYenes(eq.budget)} ${estrellasTexto(eq.stars)}`;
+    document.getElementById('ts-equipo-label').innerHTML = `${eq.name}${grl} ${formatearYenes(eq.budget)} ${estrellasTexto(eq.stars)}`;
     document.getElementById('ts-selected-name').style.display = 'block';
     actualizarEstadoIniciarCarrera();
   };
@@ -578,6 +589,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let navHistory = [];
   function activarPantalla(screenId) {
+    if (screenId === 'screen-hub') {
+      detenerMusicaPantalla();
+    }
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const target = document.getElementById(screenId);
     if (target) target.classList.add('active');
@@ -758,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Reproductor de Audio
-  const DEFAULT_VOLUME = 0.15;
+  const DEFAULT_VOLUME = 0.05;
   const themeAudio = document.getElementById('theme-audio');
   const playBtn = document.getElementById('btn-play-theme');
   const playIcon = document.getElementById('play-icon');
@@ -768,10 +782,39 @@ document.addEventListener('DOMContentLoaded', () => {
   const volSlider = document.getElementById('volume-slider');
   const volPct = document.getElementById('vol-pct');
   const volIcon = document.getElementById('vol-icon');
-
   const goalSound = document.getElementById('goal-sound');
+  const whistleSound = document.getElementById('whistle-sound');
 
   let isPlaying = false;
+
+  const matchSound = document.getElementById('match-sound');
+  const despairSound = document.getElementById('despair-sound');
+  const puzzleSound = document.getElementById('puzzle-sound');
+  const inspirationSound = document.getElementById('inspiration-sound');
+  const egoSound = document.getElementById('ego-sound');
+  const emergencySound = document.getElementById('emergency-sound');
+  const lastChanceSound = document.getElementById('last-chance-sound');
+  const awakeningSound = document.getElementById('awakening-sound');
+  const intellectSound = document.getElementById('intellect-sound');
+  const pushForwardSound = document.getElementById('push-forward-sound');
+  const bedroomSound = document.getElementById('bedroom-sound');
+
+  estadoAudio.musicas['tema'] = { audio: themeAudio, nombre: 'Blue Lock Theme (Menú Principal)' };
+  estadoAudio.sonidosSFX['gol'] = { audio: goalSound, nombre: 'Sonido de Gol (Cuando Marcas)' };
+  estadoAudio.sonidosSFX['arma_ego'] = { audio: goalSound, nombre: 'Activación de Arma (Egoísta)' };
+  estadoAudio.sonidosSFX['silbato_arbitro'] = { audio: whistleSound, nombre: 'Silbato del Árbitro (Inicio del Partido)' };
+  estadoAudio.sonidosSFX['partido'] = { audio: matchSound, nombre: 'Match Start (Música Base - Inicio de Partido)' };
+  estadoAudio.sonidosSFX['tema'] = { audio: themeAudio, nombre: 'Blue Lock Theme (Música - Ganando)' };
+  estadoAudio.sonidosSFX['puzzle'] = { audio: puzzleSound, nombre: 'Puzzle (Música - Empatando)' };
+  estadoAudio.sonidosSFX['despair'] = { audio: despairSound, nombre: 'Despair (Música - Perdiendo)' };
+  estadoAudio.sonidosSFX['inspiration'] = { audio: inspirationSound, nombre: 'Inspiration (Música - Plantilla y Táctica)' };
+  estadoAudio.sonidosSFX['intellect'] = { audio: intellectSound, nombre: 'Intellect (Música - Mercado de Fichajes)' };
+  estadoAudio.sonidosSFX['push_forward'] = { audio: pushForwardSound, nombre: 'Push Forward (Música - Entrenamiento)' };
+  estadoAudio.sonidosSFX['bedroom'] = { audio: bedroomSound, nombre: 'Bedroom (Música - Bandeja de Entrada)' };
+  estadoAudio.sonidosSFX['ego'] = { audio: egoSound, nombre: 'EGO (Música - Turno de Ataque)' };
+  estadoAudio.sonidosSFX['emergency'] = { audio: emergencySound, nombre: 'Emergency (Música - Turno de Defensa)' };
+  estadoAudio.sonidosSFX['last_chance'] = { audio: lastChanceSound, nombre: 'Last Chance (Música - Jugada Final)' };
+  estadoAudio.sonidosSFX['awakening'] = { audio: awakeningSound, nombre: 'Awakening (Música - Despertar)' };
 
   function formatTime(seconds) {
     if (isNaN(seconds)) return '0:00';
@@ -790,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setVolume(value) {
     themeAudio.volume = value;
-    goalSound.volume = value;
+    Object.values(estadoAudio.sonidosSFX).forEach(s => { s.audio.volume = value; });
     volSlider.value = value;
     const pct = Math.round(value * 100);
     volPct.textContent = `${pct}%`;
@@ -801,20 +844,225 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       volIcon.className = 'fas fa-volume-high';
     }
-    localStorage.setItem('bl_theme_volume', value);
+    localStorage.setItem('bl_volume_general', value);
   }
 
-  window.reprobarGol = function () {
-    goalSound.currentTime = 0;
-    goalSound.play().catch(() => {});
+  window.cambiarVolumenGeneral = function (valor) {
+    const v = parseFloat(valor);
+    if (isNaN(v)) return;
+    estadoAudio.volumenGeneral = v;
+    setVolume(v);
   };
 
+  window.reproducirSFX = function (nombreSonido) {
+    const sfx = estadoAudio.sonidosSFX[nombreSonido];
+    if (!sfx) return;
+    if (!estadoAudio.sfxActivados) return;
+    if (estadoAudio.sfxIndividuales[nombreSonido] === false) return;
+    if (estadoAudio.sfxReproduciendose && estadoAudio.sfxReproduciendose !== nombreSonido) {
+      detenerSFX(estadoAudio.sfxReproduciendose);
+    }
+    sfx.audio.volume = estadoAudio.volumenGeneral;
+    sfx.audio.currentTime = 0;
+    sfx.audio.play().catch(() => {});
+    estadoAudio.sfxReproduciendose = nombreSonido;
+    marcarSFXActivo(nombreSonido);
+  };
+
+  window.detenerSFX = function (nombreSonido) {
+    const sfx = estadoAudio.sonidosSFX[nombreSonido];
+    if (!sfx) return;
+    sfx.audio.pause();
+    sfx.audio.currentTime = 0;
+    if (estadoAudio.sfxReproduciendose === nombreSonido) {
+      estadoAudio.sfxReproduciendose = null;
+    }
+    marcarSFXActivo(null);
+  };
+
+  function marcarSFXActivo(nombreSonido) {
+    document.querySelectorAll('#contenedor-sfx .sfx-item').forEach(item => {
+      item.classList.toggle('activo', item.dataset.sfx === nombreSonido);
+    });
+  }
+
+  window.cambiarSfxActivados = function (activado) {
+    estadoAudio.sfxActivados = !!activado;
+    if (!estadoAudio.sfxActivados && estadoAudio.sfxReproduciendose) {
+      detenerSFX(estadoAudio.sfxReproduciendose);
+    }
+    renderListaSFX();
+  };
+
+  window.toggleSfxIndividual = function (nombreSonido, activado) {
+    estadoAudio.sfxIndividuales[nombreSonido] = !!activado;
+    if (!estadoAudio.sfxIndividuales[nombreSonido] && estadoAudio.sfxReproduciendose === nombreSonido) {
+      detenerSFX(nombreSonido);
+    }
+    const item = document.querySelector(`#contenedor-sfx .sfx-item[data-sfx="${nombreSonido}"]`);
+    if (!item) {
+      renderListaSFX();
+      return;
+    }
+    const wrap = item.querySelector('.sfx-toggle-wrap');
+    const input = item.querySelector('.sfx-toggle');
+    const play = item.querySelector('.sfx-btn.reproducir');
+    const stop = item.querySelector('.sfx-btn.parar');
+    const master = estadoAudio.sfxActivados;
+    const individual = estadoAudio.sfxIndividuales[nombreSonido] !== false;
+    if (wrap) wrap.classList.toggle('on', individual);
+    if (wrap) wrap.classList.toggle('off', !individual);
+    if (input) input.checked = individual;
+    if (play) play.disabled = !(master && individual);
+    if (stop) stop.disabled = !(master && individual);
+  };
+
+  window.renderListaSFX = function () {
+    const cont = document.getElementById('contenedor-sfx');
+    if (!cont) return;
+    const master = estadoAudio.sfxActivados;
+    const bloques = [
+      { titulo: 'Gestión y Oficina (Modo Carrera)', icono: 'fas fa-briefcase', claves: ['inspiration', 'intellect', 'push_forward', 'bedroom'] },
+      { titulo: 'Momentos de Partido (Dinámica)', icono: 'fas fa-futbol', claves: ['partido', 'ego', 'emergency', 'last_chance', 'awakening'] },
+      { titulo: 'Estados del Marcador', icono: 'fas fa-chart-line', claves: ['puzzle', 'despair', 'tema'] },
+      { titulo: 'Efectos de Sonido Cortos (SFX)', icono: 'fas fa-volume-high', claves: ['silbato_arbitro', 'gol', 'arma_ego'] }
+    ];
+    const items = bloques.map(b => {
+      const filas = b.claves
+        .filter(key => estadoAudio.sonidosSFX[key])
+        .map((key) => {
+          const s = estadoAudio.sonidosSFX[key];
+          const individual = estadoAudio.sfxIndividuales[key] !== false;
+          return `
+        <div class="sfx-item" data-sfx="${key}">
+          <span class="sfx-nombre">${s.nombre}</span>
+          <div class="sfx-botones">
+            <label class="sfx-toggle-wrap ${individual ? 'on' : 'off'}">
+              <input type="checkbox" class="sfx-toggle" onchange="toggleSfxIndividual('${key}', this.checked)" ${individual ? 'checked' : ''} ${master ? '' : 'disabled'}>
+              <span class="sfx-toggle-slider"></span>
+            </label>
+            <button class="sfx-btn reproducir" onclick="reproducirSFX('${key}')" ${master && individual ? '' : 'disabled'}><i class="fas fa-play"></i></button>
+            <button class="sfx-btn parar" onclick="detenerSFX('${key}')" ${master && individual ? '' : 'disabled'}><i class="fas fa-stop"></i></button>
+          </div>
+        </div>`;
+        }).join('');
+      return `<details class="sfx-bloque">
+        <summary><i class="${b.icono}"></i><span class="sfx-bloque-titulo">${b.titulo}</span></summary>
+        <div class="sfx-bloque-contenido">${filas}</div>
+      </details>`;
+    }).join('');
+    cont.className = master ? 'sfx-lista' : 'sfx-lista sfx-disabled';
+    cont.innerHTML = items;
+  };
+
+  window.reprobarGol = function () {
+    reproducirSFX('gol');
+  };
+
+  let temaSonandoAntesDePartido = false;
+
+  function iniciarMusicaPartido() {
+    temaSonandoAntesDePartido = isPlaying;
+    if (isPlaying) {
+      themeAudio.pause();
+    }
+    reproducirSFX('partido');
+  }
+
+  const MUSICAS_PARTIDO = ['partido', 'puzzle', 'despair', 'ego', 'emergency', 'last_chance', 'awakening', 'tema'];
+
+  function pausarMusicasExcepto(sonido) {
+    MUSICAS_PARTIDO.forEach(k => {
+      if (k !== sonido) {
+        const audio = estadoAudio.sonidosSFX[k]?.audio;
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      }
+    });
+  }
+
+  function tocarMusicaEstado(sonido, activo) {
+    const sfx = estadoAudio.sonidosSFX[sonido];
+    if (!sfx) return;
+    if (!activo || estadoAudio.sfxIndividuales[sonido] === false) {
+      sfx.audio.pause();
+      sfx.audio.currentTime = 0;
+      return;
+    }
+    pausarMusicasExcepto(sonido);
+    const audio = sfx.audio;
+    if (audio.paused) {
+      audio.volume = estadoAudio.volumenGeneral;
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    }
+  }
+
+  function detenerMusicaPartido() {
+    pausarMusicasExcepto(null);
+    if (temaSonandoAntesDePartido) {
+      themeAudio.play().catch(() => {});
+      temaSonandoAntesDePartido = false;
+    }
+  }
+
+  let temaPausadoPorPantalla = false;
+  const MUSICAS_PANTALLA = ['inspiration', 'intellect', 'push_forward', 'bedroom'];
+
+  function reproducirMusicaPantalla(sonido) {
+    if (isPlaying && !themeAudio.paused) {
+      themeAudio.pause();
+      temaPausadoPorPantalla = true;
+    }
+    tocarMusicaEstado(sonido, estadoAudio.sfxActivados);
+  }
+
+  function detenerMusicaPantalla() {
+    MUSICAS_PANTALLA.forEach(k => {
+      const sfx = estadoAudio.sonidosSFX[k];
+      if (sfx) {
+        sfx.audio.pause();
+        sfx.audio.currentTime = 0;
+      }
+    });
+    if (temaPausadoPorPantalla) {
+      themeAudio.play().catch(() => {});
+      temaPausadoPorPantalla = false;
+    }
+  }
+
+  function actualizarAudioEstadoPartido() {
+    if (!partidoCtx) return;
+    const master = estadoAudio.sfxActivados;
+    if (partidoCtx.ultimaJugadaArmaUsuario) {
+      tocarMusicaEstado('awakening', master);
+      return;
+    }
+    const misGoles = partidoCtx.esLocal ? partidoGolesLocal : partidoGolesVisit;
+    const golesRival = partidoCtx.esLocal ? partidoGolesVisit : partidoGolesLocal;
+
+    if (golesRival > misGoles) {
+      tocarMusicaEstado('despair', master);
+    } else if (misGoles > golesRival) {
+      tocarMusicaEstado('tema', master);
+    } else {
+      tocarMusicaEstado('puzzle', master);
+    }
+  }
+
   // Restaurar volumen guardado o usar default bajo
-  const savedVolume = localStorage.getItem('bl_theme_volume');
-  setVolume(savedVolume !== null ? parseFloat(savedVolume) : DEFAULT_VOLUME);
+  const savedVolume = localStorage.getItem('bl_volume_general') || localStorage.getItem('bl_theme_volume');
+  estadoAudio.volumenGeneral = savedVolume !== null ? parseFloat(savedVolume) : DEFAULT_VOLUME;
+  if (isNaN(estadoAudio.volumenGeneral)) estadoAudio.volumenGeneral = DEFAULT_VOLUME;
+  const cbSfx = document.getElementById('checkbox-sfx');
+  if (cbSfx) estadoAudio.sfxActivados = cbSfx.checked;
+  setVolume(estadoAudio.volumenGeneral);
+  renderListaSFX();
 
   volSlider.addEventListener('input', function () {
-    setVolume(parseFloat(this.value));
+    cambiarVolumenGeneral(this.value);
   });
 
   // Autoplay al cargar (si el navegador lo permite y el usuario no lo pausó antes)
@@ -931,6 +1179,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.renderPlantilla = function () {
     plantillaSort = { by: 'posicion', asc: true };
     plantillaVista = 'info';
+    reproducirMusicaPantalla('inspiration');
 
     const saved = localStorage.getItem('blue_lock_save');
     if (!saved) return;
@@ -1208,6 +1457,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let entrenarSeleccion = new Map();
 
   window.renderEntrenar = function () {
+    reproducirMusicaPantalla('push_forward');
     const saved = localStorage.getItem('blue_lock_save');
     if (!saved) return;
     const data = JSON.parse(saved);
@@ -1655,6 +1905,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let subSeleccionado = null;
 
   window.renderTactica = function () {
+    reproducirMusicaPantalla('inspiration');
     const saved = localStorage.getItem('blue_lock_save');
     if (!saved) return;
     const data = JSON.parse(saved);
@@ -2358,6 +2609,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.renderMercado = function () {
+    reproducirMusicaPantalla('intellect');
     getPresupuestoManager();
     document.getElementById('mercado-presupuesto').textContent = formatearYenes(getPresupuestoManager());
     const buscar = document.getElementById('mercado-buscar');
@@ -2536,6 +2788,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.cancelarSimulacionPartido = function () {
     partidoCtx = null;
     partidoTurno = 0;
+    detenerMusicaPartido();
     goBack();
   };
 
@@ -2701,6 +2954,7 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('blue_lock_save', JSON.stringify(data));
     sincronizarSlotActivo();
     document.getElementById('partido-btn-fin').style.display = 'block';
+    detenerMusicaPartido();
     reprobarGol();
   }
 
@@ -2731,6 +2985,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!turno) {
       finalizarPartido();
       return;
+    }
+    ctx.ultimaJugadaArmaUsuario = false;
+    const master = estadoAudio.sfxActivados;
+    if (partidoTurno === 5) {
+      tocarMusicaEstado('last_chance', master);
+    } else if (turno.tipo === 'ataque') {
+      tocarMusicaEstado('ego', master);
+    } else {
+      tocarMusicaEstado('emergency', master);
     }
     const { esLocal, eqManager, rivalId, rivalNombre, data } = ctx;
     document.getElementById('partido-minuto').textContent = `${turno.minuto}'`;
@@ -2855,6 +3118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         texto = `¡GOLAZO! ${atacNom} gana el duelo con ${statAt} y marca (${fmtDuelo(res, false)})${armaMsg}`;
         clase = 'gol';
         if (esLocal) partidoGolesLocal++; else partidoGolesVisit++;
+        reproducirSFX('gol');
       } else if (res.desenlace === 'falta') {
         texto = `¡FALTA! ${defNom} derriba a ${atacNom} con su carga (${fmtDuelo(res, false)})${armaMsg}`;
         clase = 'parada';
@@ -2870,6 +3134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         texto = `¡GOL DEL RIVAL! ${atacNom} marca con ${statAt} superando a ${defNom} (${fmtDuelo(res, true)})${armaMsg}`;
         clase = 'gol';
         if (esLocal) partidoGolesVisit++; else partidoGolesLocal++;
+        reproducirSFX('gol');
       } else if (res.desenlace === 'falta') {
         texto = `¡FALTA! ${defNom} corta la jugada de ${atacNom} con falta (${fmtDuelo(res, true)})${armaMsg}`;
         clase = 'parada';
@@ -2884,6 +3149,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('partido-goles-local').textContent = String(partidoGolesLocal);
     document.getElementById('partido-goles-visit').textContent = String(partidoGolesVisit);
+    partidoCtx.ultimaJugadaArmaUsuario = esAtaque ? !!res.armaAt : !!res.armaDef;
+    actualizarAudioEstadoPartido();
     const resultadoEl = document.getElementById('partido-resultado');
     if (resultadoEl) {
       resultadoEl.innerHTML = texto;
@@ -2951,6 +3218,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('partido-btn-fin').style.display = 'none';
     document.getElementById('partido-resultado').innerHTML = '';
     showScreen('screen-partido');
+    reproducirSFX('silbato_arbitro');
+    iniciarMusicaPartido();
     mostrarTurnoActual();
   };
 
