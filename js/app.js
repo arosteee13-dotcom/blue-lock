@@ -3402,6 +3402,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let mercadoFiltro = { posicion: '', division: '', orden: 'grl' };
   let mercadoVista = 'fichajes';
+  let mercadoPagina = 0;
+  let mercadoFirmaFiltro = '';
 
   window.cambiarMercadoVista = function (vista) {
     mercadoVista = vista === 'agentes' ? 'agentes' : 'fichajes';
@@ -3524,17 +3526,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const container = document.getElementById('mercado-lista');
+    const paginacionEl = document.getElementById('mercado-paginacion');
     if (jugadores.length === 0) {
       container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">No se encontraron jugadores.</p>';
+      if (paginacionEl) paginacionEl.innerHTML = '';
       return;
     }
 
-    const MAX_LISTA_MERCADO = 20;
-    const totalCoincidencias = jugadores.length;
-    jugadores = jugadores.slice(0, MAX_LISTA_MERCADO);
+    // Reset de página si cambiaron los filtros/búsqueda/vista
+    const firma = `${mercadoVista}|${texto}|${pos}|${div}|${orden}`;
+    if (firma !== mercadoFirmaFiltro) {
+      mercadoPagina = 0;
+      mercadoFirmaFiltro = firma;
+    }
 
-    const aviso = totalCoincidencias > MAX_LISTA_MERCADO
-      ? `<p style="font-size:0.68rem;color:var(--text-muted);margin:0 0 8px;">Mostrando ${jugadores.length} de ${totalCoincidencias} jugadores · afina con los filtros</p>`
+    const POR_PAGINA = 20;
+    const totalCoincidencias = jugadores.length;
+    const totalPaginas = Math.max(1, Math.ceil(totalCoincidencias / POR_PAGINA));
+    mercadoPagina = Math.min(mercadoPagina, totalPaginas - 1);
+    const pagina = mercadoPagina;
+    jugadores = jugadores.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
+
+    const aviso = totalCoincidencias > POR_PAGINA
+      ? `<p style="font-size:0.68rem;color:var(--text-muted);margin:0 0 8px;">Página ${pagina + 1} de ${totalPaginas} · ${totalCoincidencias} jugadores</p>`
       : '';
 
     let html = '';
@@ -3544,6 +3558,39 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
     });
     container.innerHTML = aviso + html;
+    if (paginacionEl) paginacionEl.innerHTML = htmlPaginacionMercado(pagina, totalPaginas);
+  };
+
+  function paginasVisiblesMercado(pagina, total) {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i);
+    const set = new Set([0, total - 1, pagina - 1, pagina, pagina + 1].filter(i => i >= 0 && i < total));
+    const lista = [...set].sort((a, b) => a - b);
+    const out = [];
+    let prev = -1;
+    lista.forEach(i => {
+      if (prev !== -1 && i - prev > 1) out.push('...');
+      out.push(i);
+      prev = i;
+    });
+    return out;
+  }
+
+  function htmlPaginacionMercado(pagina, totalPaginas) {
+    if (totalPaginas <= 1) return '';
+    let nums = paginasVisiblesMercado(pagina, totalPaginas).map(p => {
+      if (p === '...') return '<span class="mercado-pag-ellipsis">…</span>';
+      return `<button class="mercado-pag-btn ${p === pagina ? 'active' : ''}" onclick="irAPaginaMercado(${p})">${p + 1}</button>`;
+    }).join('');
+    return `<div class="mercado-paginacion-bar">
+      <button class="mercado-pag-btn nav" ${pagina === 0 ? 'disabled' : ''} onclick="irAPaginaMercado(${pagina - 1})"><i class="fas fa-chevron-left"></i></button>
+      ${nums}
+      <button class="mercado-pag-btn nav" ${pagina === totalPaginas - 1 ? 'disabled' : ''} onclick="irAPaginaMercado(${pagina + 1})"><i class="fas fa-chevron-right"></i></button>
+    </div>`;
+  }
+
+  window.irAPaginaMercado = function (pagina) {
+    mercadoPagina = Math.max(0, pagina);
+    filtrarMercado();
   };
 
   window.ficharJugador = function (jugadorId, precioOferta) {
