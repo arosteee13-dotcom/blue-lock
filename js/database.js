@@ -49,8 +49,8 @@ const PLANTILLAS_EQUIPO = {
     { id: "bachman", nombre: "Bachman", nombreCompleto: "Bachman", instituto: "BM Youth", edad: 20, dorsal: 1, posicion: "POR", grl: 72, altura: "193cm", pierna: "Derecha", nacionalidad: "Alemania", bandera: "🇩🇪", equipo: "Bastard München", liga: "German Manshaft League", foto: "https://static.wikia.nocookie.net/bluelock/images/d/d8/Bachman.png/revision/latest?cb=20231112212407&path-prefix=es", stats: {"div":80,"han":79,"kic":50,"ref":78,"spd":70,"pos":75} },
     { id: "ndiaye", nombre: "Ndiaye", nombreCompleto: "Ndiaye", instituto: "BM Youth", edad: 19, dorsal: 4, posicion: "LD", grl: 79, altura: "188cm", pierna: "Derecha", nacionalidad: "Alemania", bandera: "🇩🇪", equipo: "Bastard München", liga: "German Manshaft League", foto: "https://static.wikia.nocookie.net/bluelock/images/c/c1/Ndiaye.png/revision/latest?cb=20231113044320&path-prefix=es", stats: { pac: 84, sho: 42, pas: 64, dri: 64, def: 76, phy: 74 } }
   ],
-  manshine_city: [{ id: "chris_prince", nombre: "Chris Prince", nombreCompleto: "Chris Prince", instituto: "Profesional", edad: 26, dorsal: 7, posicion: "DC", grl: 98, altura: "190cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Manshine City", liga: "English Manshine League", stats: { pac: 94, sho: 98, pas: 88, dri: 92, def: 75, phy: 99 } },
-    { id: "agi", nombre: "Agi", nombreCompleto: "Agi", instituto: "Manshine Academy", edad: 19, dorsal: 9, posicion: "DC", posicionSecundaria: "MCO", grl: 85, altura: "192cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Manshine City", liga: "English Manshine League", stats: { pac: 81, sho: 84, pas: 79, dri: 80, def: 60, phy: 88 } },
+  manshine_city: [{ id: "chris_prince", nombre: "Chris Prince", nombreCompleto: "Chris Prince", apodo: "El Héroe Perfecto", instituto: "Profesional", edad: 26, dorsal: 7, posicion: "DC", grl: 98, altura: "190cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Manshine City", liga: "English Manshine League", foto: "https://static.wikia.nocookie.net/bluelock/images/f/f1/Chris_Prince.png/revision/latest?cb=20250630001956&path-prefix=es", stats: { pac: 94, sho: 98, pas: 88, dri: 92, def: 75, phy: 99 } },
+    { id: "agi", nombre: "Agi", nombreCompleto: "Agi", apodo: "Doctor", instituto: "Manshine Academy", edad: 19, dorsal: 9, posicion: "DC", posicionSecundaria: "MCO", grl: 85, altura: "192cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Manshine City", liga: "English Manshine League", valor: 80000000, foto: "https://static.wikia.nocookie.net/bluelock/images/5/5c/Agi.png/revision/latest?cb=20230309232421&path-prefix=es", stats: { pac: 81, sho: 84, pas: 79, dri: 80, def: 60, phy: 88 } },
     { id: "reo_mikage", nombre: "Reo Mikage", nombreCompleto: "Reo Mikage", instituto: "Instituto Hakuho", edad: 17, dorsal: 14, posicion: "MCD", posicionSecundaria: "DFC/MD", grl: 83, altura: "185cm", pierna: "Derecha", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Manshine City", liga: "English Manshine League", valor: 78000000, foto: "https://static.wikia.nocookie.net/bluelock/images/4/40/Reo_Mikage.png/revision/latest?cb=20230310173019&path-prefix=es", stats: { pac: 82, sho: 81, pas: 88, dri: 84, def: 76, phy: 81 } },
     { id: "chigiri_mc", nombre: "Hyoma Chigiri", nombreCompleto: "Hyoma Chigiri", instituto: "Instituto Rakosute", edad: 16, dorsal: 44, posicion: "LD", posicionSecundaria: "EI", grl: 88, altura: "177cm", pierna: "Derecha", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Manshine City", liga: "English Manshine League", foto: "https://static.wikia.nocookie.net/bluelock/images/f/f5/Hyoma_Chigiri.png/revision/latest?cb=20230310051615&path-prefix=es", stats: { pac: 98, sho: 88, pas: 81, dri: 89, def: 70, phy: 74 } },
     { id: "nagi_seishiro", nombre: "Seishiro Nagi", nombreCompleto: "Seishiro Nagi", instituto: "Instituto Hakuho", edad: 17, dorsal: 11, posicion: "DC", posicionSecundaria: "ED/MCO", grl: 88, altura: "190cm", pierna: "Derecha", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "Manshine City", liga: "English Manshine League", valor: 24000000, foto: "https://static.wikia.nocookie.net/bluelock/images/c/c9/Seishiro_Nagi.png/revision/latest?cb=20230310040429&path-prefix=es", stats: { pac: 83, sho: 93, pas: 78, dri: 95, def: 41, phy: 85 } },
@@ -79,25 +79,26 @@ const PLANTILLAS_EQUIPO = {
     { id: "real_marco", nombre: "Marco", nombreCompleto: "Marco", instituto: "Re Al Youth", edad: 19, dorsal: 7, posicion: "ED", posicionSecundaria: "EI", grl: 81, altura: "180cm", pierna: "Izquierda", nacionalidad: "España", bandera: "🇪🇸", equipo: "Re Al", liga: "Liga Neo Egotísta", stats: { pac: 87, sho: 80, pas: 78, dri: 83, def: 52, phy: 72 } },
     { id: "real_dani", nombre: "Dani", nombreCompleto: "Dani", instituto: "Re Al Youth", edad: 19, dorsal: 8, posicion: "LD", posicionSecundaria: "CAD", grl: 80, altura: "173cm", pierna: "Derecha", nacionalidad: "España", bandera: "🇪🇸", equipo: "Re Al", liga: "Liga Neo Egotísta", stats: { pac: 88, sho: 62, pas: 76, dri: 79, def: 78, phy: 75 } }],
   fc_barcha: [
-    {"id":"lavinho","nombre":"Lavinho","instituto":"Profesional","edad":29,"dorsal":11,"posicion":"DC","grl":98,"nacionalidad":"Brasil","bandera":"🇧🇷","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac":92,"sho":97,"pas":94,"dri":98,"def":48,"phy":90}},
-    {"id":"bachira_fcb","nombre":"Meguru Bachira","instituto":"Instituto Namikaze","edad":18,"dorsal":10,"posicion":"MI","posicionSecundaria":"EI/LI","grl":78,"altura":"176cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","foto":"https://static.wikia.nocookie.net/bluelock/images/f/f5/Meguru_Bachira.png/revision/latest?cb=20250607233204&path-prefix=es","stats":{"pac":86,"sho":78,"pas":88,"dri":97,"def":48,"phy":68}},
+    {"id":"lavinho","nombre":"Lavinho","apodo":"El Bailarín","instituto":"Profesional","edad":29,"dorsal":87,"posicion":"DC","grl":98,"nacionalidad":"Brasil","bandera":"🇧🇷","equipo":"FC Barcha","liga":"Liga Neo Egotísta","foto":"https://static.wikia.nocookie.net/bluelock/images/b/ba/Lavinho.png/revision/latest?cb=20230311050216&path-prefix=es","stats":{"pac":92,"sho":97,"pas":94,"dri":98,"def":48,"phy":90}},
+    {"id":"bachira_fcb","nombre":"Meguru Bachira","instituto":"Instituto Namikaze","edad":18,"dorsal":8,"posicion":"MI","posicionSecundaria":"EI/LI","grl":78,"altura":"176cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","foto":"https://static.wikia.nocookie.net/bluelock/images/f/f5/Meguru_Bachira.png/revision/latest?cb=20250607233204&path-prefix=es","stats":{"pac":86,"sho":78,"pas":88,"dri":97,"def":48,"phy":68}},
     {"id":"eita_otoya","nombre":"Eita Otoya","apodo":"El Ninja","instituto":"Kanau Academy","edad":17,"dorsal":13,"posicion":"ED","posicionSecundaria":"LD","grl":77,"altura":"177cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":63000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/2/23/Eita_Otoya.png/revision/latest?cb=20260421174352&path-prefix=es","stats":{"pac":92,"sho":84,"pas":79,"dri":88,"def":48,"phy":73}},
-    {"id":"teru_kitsunezato","nombre":"Teru Kitsunezato","apodo":"Kitsune","instituto":"Seisho Academy","edad":19,"dorsal":9,"posicion":"ED","grl":77,"altura":"181cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":4000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/2/26/Teru_Kitsunezato.png/revision/latest?cb=20230311203615&path-prefix=es","stats":{"pac":87,"sho":80,"pas":78,"dri":83,"def":50,"phy":68}},
+    {"id":"teru_kitsunezato","nombre":"Teru Kitsunezato","apodo":"Kitsune","instituto":"Seisho Academy","edad":19,"dorsal":14,"posicion":"ED","grl":77,"altura":"181cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":4000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/2/26/Teru_Kitsunezato.png/revision/latest?cb=20230311203615&path-prefix=es","stats":{"pac":87,"sho":80,"pas":78,"dri":83,"def":50,"phy":68}},
     {"id":"miroku_darai","nombre":"Miroku Darai","apodo":"Buda Golazo","instituto":"Universidad de Jishinomiya","edad":19,"dorsal":16,"posicion":"LI","grl":80,"altura":"176cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":15000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/4/45/Miroku_Darai.png/revision/latest?cb=20230311230455&path-prefix=es","stats":{"pac":78,"sho":68,"pas":78,"dri":76,"def":84,"phy":82}},
-    {"id":"haru_hayate","nombre":"Haru Hayate","instituto":"Barcha Academy","edad":19,"dorsal":7,"posicion":"MCD","grl":81,"altura":"186cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":20000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/4/49/Haru_Hayate.png/revision/latest?cb=20250105112133&path-prefix=es","stats":{"pac":80,"sho":74,"pas":85,"dri":82,"def":76,"phy":78}},
-    {"id":"ignacio_lara","nombre":"Ignacio Lara","instituto":"Barcha Youth","edad":18,"dorsal":3,"posicion":"LI","grl":81,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac":86,"sho":60,"pas":78,"dri":80,"def":77,"phy":73}},
-    {"id":"barcha_npc_01","nombre":"Miguel Rodriguez","dorsal":1,"posicion":"DFC","grl":59,"edad":19,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac": 59, "sho": 42, "pas": 57, "dri": 52, "def": 74, "phy": 70}},
-    {"id":"barcha_npc_02","nombre":"Alejandro Martinez","dorsal":2,"posicion":"LD","grl":62,"edad":20,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac": 65, "sho": 45, "pas": 60, "dri": 58, "def": 73, "phy": 68}},
-    {"id":"barcha_npc_03","nombre":"Javier Lopez","dorsal":3,"posicion":"LI","grl":62,"edad":21,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac": 66, "sho": 46, "pas": 61, "dri": 59, "def": 74, "phy": 69}},
-    {"id":"barcha_npc_04","nombre":"Pablo Gonzalez","dorsal":4,"posicion":"MCD","grl":66,"edad":18,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac": 63, "sho": 55, "pas": 70, "dri": 63, "def": 73, "phy": 70}},
-    {"id":"barcha_npc_05","nombre":"Sergio Hernandez","dorsal":5,"posicion":"MC","grl":67,"edad":19,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac": 66, "sho": 64, "pas": 74, "dri": 69, "def": 63, "phy": 64}},
-    {"id":"barcha_npc_06","nombre":"Rafael Perez","dorsal":17,"posicion":"MCO","grl":68,"edad":20,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac": 67, "sho": 72, "pas": 77, "dri": 75, "def": 55, "phy": 59}},
-    {"id":"barcha_npc_07","nombre":"Daniel Sanchez","dorsal":7,"posicion":"MI","grl":69,"edad":21,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac": 68, "sho": 66, "pas": 76, "dri": 71, "def": 65, "phy": 66}},
-    {"id":"barcha_npc_08","nombre":"Alvaro Ramirez","dorsal":8,"posicion":"EI","grl":61,"edad":18,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","stats":{"pac": 71, "sho": 64, "pas": 64, "dri": 69, "def": 46, "phy": 53}},
+    {"id":"haru_hayate","nombre":"Haru Hayate","instituto":"Barcha Academy","edad":19,"dorsal":15,"posicion":"MCD","grl":81,"altura":"186cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":20000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/4/49/Haru_Hayate.png/revision/latest?cb=20250105112133&path-prefix=es","stats":{"pac":80,"sho":74,"pas":85,"dri":82,"def":76,"phy":78}},
+    {"id":"ignacio_lara","nombre":"Ignacio Lara","instituto":"Barcha Youth","edad":18,"dorsal":9,"posicion":"EI","grl":81,"nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","foto":"https://static.wikia.nocookie.net/bluelock/images/f/f7/Ignacio_Lara.png/revision/latest?cb=20231112054053&path-prefix=es","stats":{"pac":88,"sho":76,"pas":76,"dri":84,"def":58,"phy":72}},
     {"id":"aiki_himizu","nombre":"Aiki Himizu","apodo":"Genio de las mentiras","instituto":"Desconocido","edad":18,"dorsal":77,"posicion":"DC","grl":64,"altura":"178cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":7000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/7/74/Aiki_Himizu.png/revision/latest?cb=20250730070209&path-prefix=es","stats":{"pac":75,"sho":72,"pas":65,"dri":74,"def":35,"phy":68}},
-    {"id":"shizuka_haiji","nombre":"Shizuka Haiji","instituto":"Desconocido","edad":18,"dorsal":19,"posicion":"DC","grl":58,"altura":"180cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":6000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/9/9d/Shizuka_Haiji.png/revision/latest?cb=20250823183400&path-prefix=es","stats":{"pac":62,"sho":60,"pas":48,"dri":62,"def":40,"phy":69}},
+    {"id":"shizuka_haiji","nombre":"Shizuka Haiji","instituto":"Desconocido","edad":18,"dorsal":11,"posicion":"DC","grl":58,"altura":"180cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":6000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/9/9d/Shizuka_Haiji.png/revision/latest?cb=20250823183400&path-prefix=es","stats":{"pac":62,"sho":60,"pas":48,"dri":62,"def":40,"phy":69}},
     {"id":"tetsu_sokura","nombre":"Tetsu Sokura","instituto":"Desconocido","edad":18,"dorsal":20,"posicion":"DC","grl":58,"altura":"180cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":2200000,"foto":"https://static.wikia.nocookie.net/bluelock/images/d/d8/Tetsu_Sokura.png/revision/latest?cb=20250812202046&path-prefix=es","stats":{"pac":66,"sho":63,"pas":48,"dri":62,"def":42,"phy":67}},
-    {"id":"itsuki_wakatsuki","nombre":"Itsuki Wakatsuki","instituto":"Desconocido","edad":19,"dorsal":6,"posicion":"MCD","grl":80,"altura":"178cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":40000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/0/04/Tatsuki_Wakatsuki.png/revision/latest?cb=20230311205229&path-prefix=es","stats":{"pac":80,"sho":68,"pas":84,"dri":78,"def":87,"phy":85}}
+    {"id":"itsuki_wakatsuki","nombre":"Itsuki Wakatsuki","instituto":"Desconocido","edad":19,"dorsal":12,"posicion":"MCD","grl":80,"altura":"178cm","pierna":"Derecha","nacionalidad":"Japón","bandera":"🇯🇵","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":40000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/0/04/Tatsuki_Wakatsuki.png/revision/latest?cb=20230311205229&path-prefix=es","stats":{"pac":80,"sho":68,"pas":84,"dri":78,"def":87,"phy":85}},
+    {"id":"ruiz","nombre":"Ruiz","instituto":"Barcha Youth","edad":19,"dorsal":2,"posicion":"DFC","grl":74,"altura":"188cm","pierna":"Derecha","nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":22000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/d/d4/Ruiz.png/revision/latest?cb=20231112055740&path-prefix=es","stats":{"pac":78,"sho":46,"pas":76,"dri":72,"def":84,"phy":88}},
+    {"id":"picasso","nombre":"Picasso","instituto":"Barcha Youth","edad":19,"dorsal":10,"posicion":"MC","grl":78,"altura":"178cm","pierna":"Derecha","nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":26000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/5/5b/Picasso.png/revision/latest?cb=20231112054459&path-prefix=es","stats":{"pac":78,"sho":72,"pas":86,"dri":80,"def":72,"phy":78}},
+    {"id":"espino","nombre":"Espino","instituto":"Barcha Youth","edad":19,"dorsal":6,"posicion":"MCD","grl":68,"altura":"182cm","pierna":"Derecha","nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":10000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/5/5b/Espino.png/revision/latest?cb=20231112060119&path-prefix=es","stats":{"pac":68,"sho":50,"pas":70,"dri":64,"def":76,"phy":78}},
+    {"id":"so","nombre":"So","instituto":"Barcha Youth","edad":19,"dorsal":5,"posicion":"LI","grl":67,"altura":"178cm","pierna":"Izquierda","nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":10000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/d/d9/So.jpg/revision/latest?cb=20231112060219&path-prefix=es","stats":{"pac":74,"sho":48,"pas":66,"dri":64,"def":77,"phy":75}},
+    {"id":"bos","nombre":"Bos","instituto":"Barcha Youth","edad":19,"dorsal":7,"posicion":"LD","grl":78,"altura":"178cm","pierna":"Derecha","nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":20000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/8/82/Bos.png/revision/latest?cb=20231112055048&path-prefix=es","stats":{"pac":88,"sho":56,"pas":78,"dri":78,"def":84,"phy":82}},
+    {"id":"gomez","nombre":"Gómez","instituto":"Barcha Youth","edad":20,"dorsal":4,"posicion":"MC","grl":80,"altura":"181cm","pierna":"Derecha","nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":30000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/7/74/Gomez.jpg/revision/latest?cb=20231112054715&path-prefix=es","stats":{"pac":80,"sho":74,"pas":90,"dri":82,"def":74,"phy":80}},
+    {"id":"urzaiz","nombre":"Urzaiz","instituto":"Barcha Youth","edad":19,"dorsal":3,"posicion":"DFC","grl":76,"altura":"188cm","pierna":"Derecha","nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":24000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/3/38/Uraziz.png/revision/latest?cb=20231112055557&path-prefix=es","stats":{"pac":78,"sho":48,"pas":78,"dri":70,"def":90,"phy":90}},
+    {"id":"moro","nombre":"Moro","instituto":"Barcha Youth","edad":19,"dorsal":1,"posicion":"POR","grl":76,"altura":"191cm","pierna":"Derecha","nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":22000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/5/5e/Moro.png/revision/latest?cb=20231112055921&path-prefix=es","stats":{"div":84,"han":82,"kic":58,"ref":83,"spd":65,"pos":81}},
+    {"id":"bunny_iglesias","nombre":"Bunny Iglesias","apodo":"Conejito","instituto":"Barcha Youth","edad":19,"dorsal":19,"posicion":"DC","grl":82,"altura":"191cm","pierna":"Izquierda","nacionalidad":"España","bandera":"🇪🇸","equipo":"FC Barcha","liga":"Liga Neo Egotísta","valor":45000000,"foto":"https://static.wikia.nocookie.net/bluelock/images/8/81/Bunny_Iglesias.png/revision/latest?cb=20260622160903&path-prefix=es","stats":{"pac":90,"sho":94,"pas":78,"dri":88,"def":48,"phy":92}}
   ],
   ubers_fc: [
     {"id":"marc_snuffy","nombre":"Marc Snuffy","instituto":"Profesional","edad":35,"dorsal":11,"posicion":"MCO","grl":97,"nacionalidad":"Italia","bandera":"🇮🇹","equipo":"Ubers FC","liga":"Liga Neo Egotísta","stats":{"pac":88,"sho":95,"pas":96,"dri":91,"def":82,"phy":92}},
@@ -742,7 +743,7 @@ const NEO_EQUIPOS = [
   { id: "brightneon", name: "Brightneon", domesticLeague: "Inglaterra", stars: 3, grl: 79, budget: 3500000000, formation: "4-2-3-1", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", escudo: "", players: [] },
   { id: "topspur_fc", name: "Topspur FC", domesticLeague: "Inglaterra", stars: 3, grl: 80, budget: 5000000000, formation: "4-3-3", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", escudo: "", players: [] },
   // 🇪🇸 España
-  { id: "fc_barcha", name: "FC Barcha", domesticLeague: "España", stars: 4, grl: 85, budget: 8500000000, formation: "4-3-3", bandera: "🇪🇸", escudo: "assets/logos/barcha.png", players: [] },
+  { id: "fc_barcha", name: "FC Barcha", domesticLeague: "España", stars: 4, grl: 85, budget: 8500000000, formation: "4-3-3", bandera: "🇪🇸", escudo: "assets/logos/barcha.png", noRelleno: true, players: [] },
   { id: "re_al", name: "Re Al", domesticLeague: "España", stars: 4, grl: 85, budget: 11500000000, formation: "4-3-1-2", bandera: "🇪🇸", escudo: "assets/logos/real_bastard.png", players: [] },
   { id: "chicorid", name: "Chicorid", domesticLeague: "España", stars: 3, grl: 80, budget: 1200000000, formation: "4-2-3-1", bandera: "🇪🇸", escudo: "assets/logos/chicorid.png", players: [] },
   // 🇮🇹 Italia
@@ -795,6 +796,8 @@ const NEO_EQUIPOS = [
   Object.keys(DIVISIONES).forEach(divKey => {
     (DIVISIONES[divKey].equipos || []).forEach(teamId => {
       if (!PLANTILLAS_EQUIPO[teamId]) PLANTILLAS_EQUIPO[teamId] = [];
+      const eqInfo = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.find(e => e.id === teamId) : null;
+      if (eqInfo && eqInfo.noRelleno) return;
       if (PLANTILLAS_EQUIPO[teamId].length < 22) {
         PLANTILLAS_EQUIPO[teamId] = PLANTILLAS_EQUIPO[teamId].concat(generarPlantillaCompleta(teamId));
       }
@@ -892,7 +895,7 @@ const VALORES_JUGADOR = {
   kunigami_bm: 66000000,
   bachira_fcb: 120000000,
   hiori_yo: 39000000,
-  agi: 220000000,
+  agi: 80000000,
   ikki_niko: 40000000,
   yukimiya_kenyu: 42000000,
   jyubei_aryu: 45000000,
@@ -968,13 +971,13 @@ const ARMAS_DATABASE = {
     { name: "Cuerpo de Acero", stats: { phy: 12 }, desc: "Utiliza su envergadura para dominar el área rival y ganar balones divididos." }
   ],
   naruhaya: [
-    { name: "Movimientos sin balón", stats: { dri: 10 }, desc: "Se desliza instantáneamente en los puntos ciegos de la defensa para recibir libre de marca." }
+    { name: "Movimientos sin Balón", stats: { dri: 12 }, desc: "Se desliza instantáneamente en los puntos ciegos de la defensa para recibir libre de marca." }
   ],
   isagi_bm: [
     { name: "Metavisión × Flujo de Reflejos", stats: { pas: 22 }, desc: "Devora el campo con una visión periférica absoluta, anticipando el futuro del partido para rematar de primeras o interceptar el balón por puro instinto." },
-    { name: "Metavisión", stats: { pas: 20 }, desc: "Recopila información constante del campo para predecir las jugadas." },
+    { name: "Metavisión", stats: { pas: 16 }, desc: "Recopila información constante del campo para predecir las jugadas." },
     { name: "Tiro Directo", stats: { sho: 18 }, desc: "Impacto fulminante al primer toque sin dar tiempo a la defensa." },
-    { name: "Movimiento sin Balón", stats: { dri: 12 }, desc: "Se desliza de forma invisible en los puntos ciegos defensivos." },
+    { name: "Movimientos sin Balón", stats: { dri: 12 }, desc: "Se desliza de forma invisible en los puntos ciegos defensivos." },
     { name: "Tiro Zurdo Secundario", stats: { sho: 12 }, desc: "Gana un recurso de disparo con la pierna izquierda para burlar bloqueos." }
   ],
   gagamaru_bm: [
@@ -1014,9 +1017,9 @@ const ARMAS_DATABASE = {
     { name: "Velocidad y Agilidad", stats: { pac: 10 }, desc: "Aprovecha su ligereza y aceleración para romper la línea defensiva en sprints cortos." }
   ],
   ikki_niko: [
-    { name: "Conciencia espacial", stats: { def: 5 }, desc: "Lee el espacio y anticipa los movimientos rivales para cortar el ataque." },
+    { name: "Conciencia Espacial", stats: { def: 14 }, desc: "Lee el espacio y anticipa los movimientos rivales para cortar el ataque." },
     { name: "Posicionamiento defensivo", stats: { phy: 6 }, desc: "Se coloca siempre en la línea correcta, compensando su físico con inteligencia." },
-    { name: "Metavisión", stats: { pas: 8 }, desc: "Procesa toda la información del campo para predecir la jugada y filtrar pases letales." }
+    { name: "Metavisión", stats: { pas: 16 }, desc: "Procesa toda la información del campo para predecir la jugada y filtrar pases letales." }
   ],
   hibiki_ookawa: [
     { name: "Super disparo", stats: { sho: 6 }, desc: "Remate demoledor y potencia de golpeo." }
@@ -1033,7 +1036,7 @@ const ARMAS_DATABASE = {
     { name: "Carga", stats: { phy: 10, pac: 3 }, desc: "Usa su imponente físico para desplazar a los defensas en carrera." },
     { name: "Dribleo agresivo", stats: { dri: 6, phy: 4 }, desc: "Avanza por potencia pura destrozando el bloque defensivo." },
     { name: "Finta de corte", stats: { dri: 8, pac: 4 }, desc: "Recorte seco hacia dentro para perfilarse de cara a portería." },
-    { name: "Ojo del Depredador", stats: { sho: 12, dri: 2 }, desc: "Calcula el milisegundo exacto en que el portero parpadea para tirar." }
+    { name: "Ojo del Depredador", stats: { sho: 12 }, desc: "Calcula el milisegundo exacto en que el portero parpadea para tirar." }
   ],
   nagi_seishiro: [
     { name: "Control de Balón de Genio", stats: { dri: 15, sho: 4 }, desc: "Controla el balón con la naturalidad de un genio, neutralizando cualquier presión y quedándose la pelota muerta al primer toque." },
@@ -1099,6 +1102,92 @@ const ARMAS_DATABASE = {
   ],
   yukio_ishikari: [
     { name: "Punto de Impacto más Alto (Estatura Extrema)", stats: { phy: 13, sho: 12 }, desc: "Su estatura descomunal le da el punto de impacto más alto en cada balón aéreo." }
+  ],
+  adam_blake: [
+    { name: "Físico Arrollador", stats: { phy: 12 }, desc: "Su corpulencia desplaza a cualquier defensa y protege el balón con poder bruto." },
+    { name: "Aceleración Explosiva", stats: { pac: 15 }, desc: "Arrancada fulgurante desde parado que deja atrás a su marcador." }
+  ],
+  julian_loki: [
+    { name: "Dios Velocista", stats: { pac: 18 }, desc: "Velocidad sobrenatural que convierte cualquier espacio en una oportunidad." },
+    { name: "Ojo del Depredador", stats: { sho: 12 }, desc: "Calcula el instante exacto en que el portero parpadea para rematar." }
+  ],
+  leonardo_luna: [
+    { name: "Regate Elegante", stats: { dri: 16 }, desc: "Fintas depuradas y fluidas que desarman a la defensa con total clase." }
+  ],
+  pablo_cavasoz: [
+    { name: "Precisión de Tiro Perfecta", stats: { sho: 16 }, desc: "Golpeos milimétricos con una colocación imposible de detener." },
+    { name: "Metavisión", stats: { pas: 16 }, desc: "Lee el partido por completo y filtra pases que rompen líneas." },
+    { name: "Lanzamiento de Tiros Libres", stats: { sho: 8, pas: 6 }, desc: "Especialista a balón parado con una puntería letal." }
+  ],
+  kazuma_nio: [
+    { name: "Físico de Dóberman", stats: { phy: 14, def: 4 }, desc: "Marcaje agresivo y rocoso que anula al delantero rival en el cuerpo a cuerpo." }
+  ],
+  haru_hayate: [
+    { name: "Lectura del Delantero Peligroso", stats: { def: 12 }, desc: "Detecta al atacante más peligroso y lo corta antes de que reciba." }
+  ],
+  itsuki_wakatsuki: [
+    { name: "Criterio Defensivo", stats: { def: 12, pas: 4 }, desc: "Toma decisiones correctas en la presión, cortando y reiniciando con calma." }
+  ],
+  miroku_darai: [
+    { name: "Movimientos sin Balón", stats: { dri: 12 }, desc: "Se mueve en los espacios libres para recibir y progresar." },
+    { name: "Predicción", stats: { def: 10 }, desc: "Anticipa las jugadas rivales y se posiciona antes que ellos." }
+  ],
+  kento_chou: [
+    { name: "Ventaja Aérea (193cm)", stats: { phy: 10, sho: 6 }, desc: "Usa su altura para ganar duelos aéreos y rematar de cabeza." }
+  ],
+  itoshi_sae: [
+    { name: "Tiro Perfecto", stats: { sho: 18 }, desc: "Disparos precisos y potentes que no dan opción al portero." },
+    { name: "Metavisión", stats: { pas: 16 }, desc: "Controla el ritmo del partido y encuentra el pase imposible." },
+    { name: "Contra-Regate", stats: { dri: 10 }, desc: "Recortes secos para salir de la presión con el balón controlado." }
+  ],
+  shuuto_sendou: [
+    { name: "Defensa de Cara a Portería", stats: { sho: 10, dri: 6 }, desc: "Se da la vuelta con el balón pegado al pie para finalizar." },
+    { name: "Orgullo", stats: { phy: 6, dri: 4 }, desc: "Su arrogancia competitiva le mantiene en duelo hasta el final." }
+  ],
+  oliver_aiku: [
+    { name: "Conciencia Espacial", stats: { def: 14 }, desc: "Lectura total del espacio para anticipar y cortar." },
+    { name: "Metavisión", stats: { pas: 16 }, desc: "Ve el campo entero y organiza la salida desde atrás." },
+    { name: "Físico Imponente", stats: { phy: 10 }, desc: "Envergadura y fuerza para ganar todos los duelos." }
+  ],
+  teru_kitsunezato: [
+    { name: "Explosividad", stats: { pac: 14 }, desc: "Chispazo de velocidad para desbordar en el primer metro." }
+  ],
+  alexis_ness: [
+    { name: "Flexibilidad", stats: { dri: 12 }, desc: "Cuerpo elástico que se cuela entre las piernas rivales." },
+    { name: "Regate Creativo", stats: { dri: 12 }, desc: "Recursos imprevisibles para romper el uno contra uno." },
+    { name: "Pase Mágico", stats: { pas: 12 }, desc: "Asistencias de fantasía al primer toque." }
+  ],
+  benedict_grim: [
+    { name: "Centros Precisos", stats: { pas: 10 }, desc: "Envía centros medidos al área desde la banda." },
+    { name: "Físico y Regate", stats: { phy: 8, dri: 8 }, desc: "Aguanta la carga y se deshace del rival con potencia." }
+  ],
+  erik_gesner: [
+    { name: "Control de Balón", stats: { dri: 12 }, desc: "Amortigua cualquier balón con una primera toma perfecta." },
+    { name: "Regates Técnicos", stats: { dri: 10 }, desc: "Conducción fina que le permite mantener la posesión bajo presión." }
+  ],
+  michael_kaiser: [
+    { name: "Impacto Kaiser", stats: { sho: 20 }, desc: "Disparo devastador con un efecto imposible de leer." },
+    { name: "Metavisión", stats: { pas: 16 }, desc: "Visión periférica absoluta para predecir el juego." },
+    { name: "Ojo del Depredador", stats: { sho: 12 }, desc: "Remata en el momento exacto en que el portero se descuida." }
+  ],
+  noel_noa: [
+    { name: "Disparo Todopoderoso", stats: { sho: 20 }, desc: "El mejor golpeo del mundo, con potencia y precisión absolutas." },
+    { name: "Superioridad Física", stats: { phy: 18 }, desc: "Físico dominante que supera a cualquier defensa." },
+    { name: "Aceleración Instantánea", stats: { pac: 14 }, desc: "Explota en velocidad en el instante exacto para desmarcarse." }
+  ],
+  lavinho: [
+    { name: "Regate del Bailarín", stats: { dri: 18 }, desc: "Fintas de samba que desequilibran a la defensa con puro arte." }
+  ],
+  dada_silva: [
+    { name: "Poder de Salto", stats: { phy: 12 }, desc: "Salto descomunal para ganar cualquier balón aéreo." },
+    { name: "Remate de Cabeza", stats: { sho: 10 }, desc: "Cabezazos potentes que clavan el balón en la red." }
+  ],
+  chris_prince: [
+    { name: "Físico Perfecto", stats: { phy: 16 }, desc: "El físico más dominante del mundo: imponente en el choque y el juego aéreo." },
+    { name: "Disparo Knuckleball", stats: { sho: 16 }, desc: "Golpeo con efecto impredecible que baila en el aire y se cuela en la escuadra." }
+  ],
+  agi: [
+    { name: "Largo Alcance", stats: { phy: 10, sho: 6 }, desc: "Su envergadura (192cm) le da alcance extra para ganar el balón y finalizar de cabeza." }
   ]
 };
 
