@@ -21,6 +21,12 @@ const BLUE_LOCK_DATABASE = {
     { id: "ach_team_z_hero", nombre: "Supera el Edificio 5", desc: "Clasifícate en la Primera Selección del Modo Historia.", recompensa: 1000, completado: false },
     { id: "ach_devour", nombre: "Devorador de Talentos", desc: "Recluta a tu primer rival tras ganarle un partido.", recompensa: 500, completado: false },
     { id: "ach_metavision", nombre: "Visión Omnipresente", desc: "Alcanza 90 de Visión con tu jugador.", recompensa: 1500, completado: false }
+  ],
+
+  cuerpoTecnico: [
+    { id: "gambari", nombre: "Gambari", rol: "Entrenador", nacionalidad: "Nigeria", bandera: "🇳🇬", afiliacion: "Nigeria Sub-20", debut: "Capítulo 318", foto: "https://static.wikia.nocookie.net/bluelock/images/c/ce/Gambari.png/revision/latest?cb=20250916213540&path-prefix=es" },
+    { id: "rodin", nombre: "Rodin", rol: "Entrenador", nacionalidad: "Francia", bandera: "🇫🇷", afiliacion: "Francia Sub-20", debut: "Capítulo 339", foto: "https://static.wikia.nocookie.net/bluelock/images/5/51/Rodin.png/revision/latest?cb=20260407153748&path-prefix=es" },
+    { id: "fox", nombre: "Fox", rol: "Entrenador", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", afiliacion: "Inglaterra Sub-20", debut: "Capítulo 355", foto: "https://static.wikia.nocookie.net/bluelock/images/7/73/Fox.png/revision/latest?cb=20260730223220&path-prefix=es" }
   ]
 };
 
@@ -168,10 +174,56 @@ const PLANTILLAS_EQUIPO = {
     {"id":"topspur_ridley","nombre":"Jack Ridley","instituto":"Topspur Academy","edad":20,"dorsal":22,"posicion":"ED","grl":65,"altura":"175cm","pierna":"Derecha","nacionalidad":"Inglaterra","bandera":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","equipo":"Topspur FC","liga":"Liga Neo Egotísta","valor":8000000,"stats":{"pac":86,"sho":70,"pas":64,"dri":72,"def":34,"phy":62}}
   ],
   arsenali: [
-    { id: "vivian_hugo", nombre: "Vivian Hugo", nombreCompleto: "Vivian Hugo", apodo: "Hugo", instituto: "Profesional", edad: 19, dorsal: 9, posicion: "MC", posicionSecundaria: "MCO", grl: 87, altura: "187cm", pierna: "Derecha", nacionalidad: "Francia", bandera: "🇫🇷", equipo: "Arsenali", liga: "Liga Neo Egotísta", valor: 228000000, foto: "https://static.wikia.nocookie.net/bluelock/images/0/02/Hugo.png/revision/latest?cb=20251118170122&path-prefix=es", stats: { pac: 82, sho: 78, pas: 94, dri: 88, def: 80, phy: 84 } }
+    { id: "vivian_hugo", nombre: "Vivian Hugo", nombreCompleto: "Vivian Hugo", apodo: "Hugo", instituto: "Profesional", edad: 19, dorsal: 9, posicion: "MC", posicionSecundaria: "MCO", grl: 87, altura: "187cm", pierna: "Derecha", nacionalidad: "Francia", bandera: "🇫🇷", equipo: "Arsenali", liga: "Liga Neo Egotísta", valor: 228000000, foto: "https://static.wikia.nocookie.net/bluelock/images/0/02/Hugo.png/revision/latest?cb=20251118170122&path-prefix=es", stats: { pac: 82, sho: 78, pas: 94, dri: 88, def: 80, phy: 84 } },
+    { id: "teddy_knight", nombre: "Teddy Knight", nombreCompleto: "Teddy Knight", apodo: "Caballero Arcoíris", instituto: "Profesional", edad: 19, dorsal: 21, posicion: "EI", grl: 84, altura: "178cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Arsenali", liga: "Liga Neo Egotísta", valor: 162000000, foto: "https://static.wikia.nocookie.net/bluelock/images/1/1d/Teddy_Knight.png/revision/latest?cb=20260630152509&path-prefix=es", stats: { pac: 88, sho: 88, pas: 74, dri: 95, def: 35, phy: 70 } },
+    { id: "childs", nombre: "Childs", nombreCompleto: "Childs", instituto: "Profesional", edad: 19, dorsal: 7, posicion: "ED", grl: 82, altura: "178cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Arsenali", liga: "Liga Neo Egotísta", valor: 126000000, foto: "https://static.wikia.nocookie.net/bluelock/images/7/76/Childs.png/revision/latest?cb=20260730222319&path-prefix=es", stats: { pac: 88, sho: 86, pas: 70, dri: 88, def: 34, phy: 70 } }
   ],
   aaa_holanda: [
     { id: "haneru_shindo", nombre: "Haneru Shindo", nombreCompleto: "Haneru Shindo", instituto: "Profesional", edad: 19, dorsal: 24, posicion: "DC", grl: 75, altura: "183cm", pierna: "Derecha", nacionalidad: "Japón", bandera: "🇯🇵", equipo: "AAA", liga: "Neo Eredivisie", valor: 65000000, foto: "https://static.wikia.nocookie.net/bluelock/images/8/82/Haneru_Shindo.png/revision/latest?cb=20251126015546&path-prefix=es", stats: { pac: 76, sho: 80, pas: 65, dri: 74, def: 45, phy: 74 } }
+  ],
+  manshine_united: [
+    { id: "innocent_onazi", nombre: "Innocent Onazi", nombreCompleto: "Innocent Onazi", apodo: "El Luminoso", instituto: "Profesional", edad: 19, dorsal: 9, posicion: "DC", grl: 83, altura: "177cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "Manshine United", liga: "Liga Neo Egotísta", valor: 144000000, foto: "https://static.wikia.nocookie.net/bluelock/images/c/c3/Onazi.png/revision/latest?cb=20250722160357&path-prefix=es", stats: { pac: 88, sho: 88, pas: 70, dri: 86, def: 40, phy: 76 } },
+    { id: "achanpong", nombre: "Achanpong", nombreCompleto: "Achanpong", instituto: "Profesional", edad: 19, dorsal: 10, posicion: "MCO", grl: 81, altura: "178cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Manshine United", liga: "Liga Neo Egotísta", valor: 108000000, foto: "https://static.wikia.nocookie.net/bluelock/images/e/e1/Achanpong.png/revision/latest?cb=20260730222851&path-prefix=es", stats: { pac: 78, sho: 76, pas: 90, dri: 88, def: 62, phy: 74 } },
+    { id: "goodman", nombre: "Goodman", nombreCompleto: "Goodman", instituto: "Profesional", edad: 19, dorsal: 3, posicion: "DFC", grl: 80, altura: "188cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Manshine United", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/0/03/Goodman.png/revision/latest?cb=20260730221329&path-prefix=es", stats: { pac: 72, sho: 42, pas: 66, dri: 58, def: 92, phy: 82 } }
+  ],
+  ac_milanoia: [
+    { id: "godwin_kuso", nombre: "Godwin Kuso", nombreCompleto: "Godwin Kuso", instituto: "Profesional", edad: 19, dorsal: 10, posicion: "MCO", grl: 83, altura: "185cm", pierna: "Izquierda", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "AC Milanoia", liga: "Liga Neo Egotísta", valor: 144000000, foto: "https://static.wikia.nocookie.net/bluelock/images/b/be/Kuso.png/revision/latest?cb=20250728045000&path-prefix=es", stats: { pac: 84, sho: 80, pas: 92, dri: 93, def: 60, phy: 73 } },
+    { id: "kaita", nombre: "Kaita", nombreCompleto: "Kaita", instituto: "Profesional", edad: 19, dorsal: 5, posicion: "LI", grl: 80, altura: "178cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "AC Milanoia", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/d/da/Kaita.png/revision/latest?cb=20250826194158&path-prefix=es", stats: { pac: 82, sho: 50, pas: 72, dri: 70, def: 86, phy: 78 } }
+  ],
+  brightneon: [
+    { id: "bello", nombre: "Bello", nombreCompleto: "Bello", instituto: "Profesional", edad: 19, dorsal: 11, posicion: "ED", grl: 83, altura: "175cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "Brightneon", liga: "Liga Neo Egotísta", valor: 144000000, foto: "https://static.wikia.nocookie.net/bluelock/images/0/0b/Bello.png/revision/latest?cb=20250728172612&path-prefix=es", stats: { pac: 90, sho: 85, pas: 70, dri: 92, def: 32, phy: 72 } }
+  ],
+  interias_milanoia: [
+    { id: "oboabona", nombre: "Oboabona", nombreCompleto: "Oboabona", instituto: "Profesional", edad: 19, dorsal: 8, posicion: "DFC", grl: 81, altura: "186cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "Interias Milanoia", liga: "Liga Neo Egotísta", valor: 108000000, foto: "https://static.wikia.nocookie.net/bluelock/images/9/9b/Oboabona.png/revision/latest?cb=20250728044740&path-prefix=es", stats: { pac: 72, sho: 40, pas: 62, dri: 55, def: 92, phy: 90 } }
+  ],
+  monao: [
+    { id: "agbim", nombre: "Agbim", nombreCompleto: "Agbim", instituto: "Profesional", edad: 19, dorsal: 1, posicion: "POR", grl: 81, altura: "188cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "Monao", liga: "Liga Neo Egotísta", valor: 108000000, foto: "https://static.wikia.nocookie.net/bluelock/images/0/00/Agbim.png/revision/latest?cb=20250729154153&path-prefix=es", stats: { div: 75, han: 83, kic: 62, ref: 84, spd: 70, pos: 82 } },
+    { id: "hermes", nombre: "Hermes", nombreCompleto: "Hermes", instituto: "Profesional", edad: 19, dorsal: 2, posicion: "MCD", grl: 80, altura: "180cm", pierna: "Derecha", nacionalidad: "Francia", bandera: "🇫🇷", equipo: "Monao", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/0/0d/Hermes.png/revision/latest?cb=20260106170536&path-prefix=es", stats: { pac: 74, sho: 55, pas: 86, dri: 78, def: 82, phy: 78 } }
+  ],
+  chelblue: [
+    { id: "ekpo", nombre: "Ekpo", nombreCompleto: "Ekpo", instituto: "Profesional", edad: 19, dorsal: 6, posicion: "DFC", grl: 81, altura: "186cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "Chelblue", liga: "Liga Neo Egotísta", valor: 108000000, foto: "https://static.wikia.nocookie.net/bluelock/images/5/5d/Ekpo.png/revision/latest?cb=20250806091534&path-prefix=es", stats: { pac: 70, sho: 40, pas: 62, dri: 55, def: 92, phy: 88 } }
+  ],
+  marseille: [
+    { id: "sadiq", nombre: "Sadiq", nombreCompleto: "Sadiq", instituto: "Profesional", edad: 19, dorsal: 7, posicion: "MC", grl: 80, altura: "180cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "Marseille", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/2/26/Sadiq.png/revision/latest?cb=20250902153028&path-prefix=es", stats: { pac: 74, sho: 62, pas: 90, dri: 82, def: 68, phy: 74 } },
+    { id: "delon", nombre: "Delon", nombreCompleto: "Delon", instituto: "Profesional", edad: 19, dorsal: 4, posicion: "LD", grl: 80, altura: "178cm", pierna: "Derecha", nacionalidad: "Francia", bandera: "🇫🇷", equipo: "Marseille", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/f/f2/Delon.png/revision/latest?cb=20260106170607&path-prefix=es", stats: { pac: 84, sho: 50, pas: 74, dri: 72, def: 86, phy: 76 } },
+    { id: "bats", nombre: "Bats", nombreCompleto: "Bats", instituto: "Profesional", edad: 19, dorsal: 5, posicion: "MCD", grl: 80, altura: "181cm", pierna: "Derecha", nacionalidad: "Francia", bandera: "🇫🇷", equipo: "Marseille", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/1/11/Bats.png/revision/latest?cb=20260411162738&path-prefix=es", stats: { pac: 74, sho: 52, pas: 86, dri: 78, def: 80, phy: 80 } },
+    { id: "camus", nombre: "Camus", nombreCompleto: "Camus", instituto: "Profesional", edad: 19, dorsal: 11, posicion: "ED", grl: 80, altura: "178cm", pierna: "Derecha", nacionalidad: "Francia", bandera: "🇫🇷", equipo: "Marseille", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/a/ad/Camus.png/revision/latest?cb=20260121000811&path-prefix=es", stats: { pac: 86, sho: 82, pas: 70, dri: 86, def: 45, phy: 70 } }
+  ],
+  ajajax: [
+    { id: "umaru", nombre: "Umaru", nombreCompleto: "Umaru", instituto: "Profesional", edad: 19, dorsal: 16, posicion: "EI", grl: 80, altura: "178cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "Ajajax", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/0/07/Umaru.png/revision/latest?cb=20250826154306&path-prefix=es", stats: { pac: 86, sho: 84, pas: 66, dri: 88, def: 32, phy: 68 } }
+  ],
+  napolin: [
+    { id: "ezekiel", nombre: "Ezekiel", nombreCompleto: "Ezekiel", instituto: "Profesional", edad: 19, dorsal: 4, posicion: "MC", grl: 80, altura: "182cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "Napolin", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/7/73/Ezekiel.png/revision/latest?cb=20250827005543&path-prefix=es", stats: { pac: 74, sho: 60, pas: 88, dri: 84, def: 66, phy: 78 } }
+  ],
+  rpb: [
+    { id: "momodu", nombre: "Momodu", nombreCompleto: "Momodu", instituto: "Profesional", edad: 19, dorsal: 14, posicion: "LD", grl: 80, altura: "177cm", pierna: "Derecha", nacionalidad: "Nigeria", bandera: "🇳🇬", equipo: "RPB", liga: "Liga Neo Egotísta", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/6/6b/Momodu.png/revision/latest?cb=20250902153806&path-prefix=es", stats: { pac: 84, sho: 50, pas: 72, dri: 72, def: 86, phy: 76 } }
+  ],
+  start_reims: [
+    { id: "leyden", nombre: "Leyden", nombreCompleto: "Leyden", instituto: "Profesional", edad: 19, dorsal: 8, posicion: "EI", grl: 80, altura: "176cm", pierna: "Derecha", nacionalidad: "Francia", bandera: "🇫🇷", equipo: "Start Reims", liga: "Neo Ligue 1", valor: 90000000, foto: "https://static.wikia.nocookie.net/bluelock/images/3/3c/Leyden.png/revision/latest?cb=20260106170518&path-prefix=es", stats: { pac: 90, sho: 82, pas: 70, dri: 86, def: 38, phy: 68 } }
+  ],
+  livers: [
+    { id: "niang", nombre: "Niang", nombreCompleto: "Niang", instituto: "Profesional", edad: 19, dorsal: 4, posicion: "MC", grl: 82, altura: "180cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Livers", liga: "Liga Neo Egotísta", valor: 126000000, foto: "https://static.wikia.nocookie.net/bluelock/images/7/7c/Niang.png/revision/latest?cb=20260730221725&path-prefix=es", stats: { pac: 76, sho: 64, pas: 90, dri: 86, def: 72, phy: 76 } },
+    { id: "skelton", nombre: "Skelton", nombreCompleto: "Skelton", instituto: "Profesional", edad: 19, dorsal: 8, posicion: "MC", grl: 82, altura: "181cm", pierna: "Derecha", nacionalidad: "Inglaterra", bandera: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", equipo: "Livers", liga: "Liga Neo Egotísta", valor: 126000000, foto: "https://static.wikia.nocookie.net/bluelock/images/0/0f/Skelton.png/revision/latest?cb=20260730222550&path-prefix=es", stats: { pac: 76, sho: 66, pas: 90, dri: 84, def: 74, phy: 78 } }
   ],
   berserk_dortmund: [
     {"id":"dortmund_npc_01","nombre":"Lukas Weber","dorsal":1,"posicion":"DFC","grl":58,"edad":19,"nacionalidad":"Alemania","bandera":"🇩🇪","equipo":"Berserk Dortmund","liga":"Liga Neo Egotísta","stats":{"pac": 58, "sho": 41, "pas": 56, "dri": 51, "def": 73, "phy": 69}},
@@ -396,8 +448,18 @@ const PERSONAJES_HISTORIA = {
   "Yasumori Houichi": "https://static.wikia.nocookie.net/bluelock/images/e/e1/Yasumori_Houichi.png/revision/latest?cb=20230305185350&path-prefix=es",
   "Hirotoshi Buratsuta": "https://static.wikia.nocookie.net/bluelock/images/9/9e/Hirotoshi_Buratsuta.png/revision/latest?cb=20230305185303&path-prefix=es",
   "Jinpachi Ego": "https://static.wikia.nocookie.net/bluelock/images/3/3b/Jinpachi_Ego.png/revision/latest?cb=20230304231234&path-prefix=es",
-  "Anri Teieri": "https://static.wikia.nocookie.net/bluelock/images/1/15/Anri_Teieri.png/revision/latest?cb=20230305185524&path-prefix=es"
+  "Anri Teieri": "https://static.wikia.nocookie.net/bluelock/images/1/15/Anri_Teieri.png/revision/latest?cb=20230305185524&path-prefix=es",
+  "Atsuto Tereasa": "https://static.wikia.nocookie.net/bluelock/images/4/47/Atsuto_Tereasa.png/revision/latest?cb=20231212000855&path-prefix=es",
+  "Harutarou Natsuki": "https://static.wikia.nocookie.net/bluelock/images/3/3b/Harutarou_Natsuki.png/revision/latest?cb=20231212000906&path-prefix=es",
+  "Shusaku Nihei": "https://static.wikia.nocookie.net/bluelock/images/d/dc/Nihei.png/revision/latest?cb=20231119072854&path-prefix=es"
 };
+
+// ===== FIGURAS DEL MODO HISTORIA (no son jugadores) — fichas básicas =====
+const FIGURAS_HISTORIA = [
+  { id: "atsuto_tereasa", nombre: "Atsuto Tereasa", rol: "Comentarista deportivo", nacionalidad: "Japón", bandera: "🇯🇵", debut: "Capítulo 112", foto: "https://static.wikia.nocookie.net/bluelock/images/4/47/Atsuto_Tereasa.png/revision/latest?cb=20231212000855&path-prefix=es" },
+  { id: "harutarou_natsuki", nombre: "Harutarou Natsuki", rol: "Comentarista deportivo", nacionalidad: "Japón", bandera: "🇯🇵", debut: "Capítulo 112", foto: "https://static.wikia.nocookie.net/bluelock/images/3/3b/Harutarou_Natsuki.png/revision/latest?cb=20231212000906&path-prefix=es" },
+  { id: "shusaku_nihei", nombre: "Shusaku Nihei", rol: "Periodista", nacionalidad: "Japón", bandera: "🇯🇵", afiliacion: "Soccer Journal", debut: "Capítulo 4", foto: "https://static.wikia.nocookie.net/bluelock/images/d/dc/Nihei.png/revision/latest?cb=20231119072854&path-prefix=es" }
+];
 
 // ===== COLORES DE CLUB PARA EQUIPOS SIN LOGO (2ª DIVISIÓN) =====
 const COLORES_EQUIPOS = {
