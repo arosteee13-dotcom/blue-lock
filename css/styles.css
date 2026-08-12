@@ -3686,7 +3686,8 @@ header {
   padding: 4px 0;
 }
 
-#canvas-hexagono {
+#canvas-hexagono,
+.ficha-hexagono canvas {
   width: 100%;
   max-width: 290px;
   height: auto;

@@ -1195,9 +1195,14 @@ document.addEventListener('DOMContentLoaded', () => {
     { nombre: 'Reflejos', key: 'ref' }
   ];
 
-  window.actualizarHexagono = function (stats, esPOR, canvasId) {
+  // Hexágono de atributos (radar). Función global reutilizable:
+  // renderizarHexagono(canvasId, stats, esPOR) — esPOR auto-detectado si se omite.
+  window.renderizarHexagono = function (canvasId, stats, esPOR) {
     const canvas = document.getElementById(canvasId || 'canvas-hexagono');
     if (!canvas) return;
+    if (esPOR === undefined) {
+      esPOR = !!(stats && (stats.div !== undefined || stats.spd !== undefined || stats.kic !== undefined));
+    }
     const ctx = canvas.getContext('2d');
     const W = 520;
     const H = 560;
@@ -1330,7 +1335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!posicion) {
       el('ficha-grl-valor', '—');
       cont.innerHTML = '<p style="font-size:0.7rem;color:var(--text-muted);padding:8px;text-align:center;">Elige una posición para calcular tus atributos</p>';
-      window.actualizarHexagono({}, false);
+      window.renderizarHexagono('canvas-hexagono', {}, false);
       return;
     }
 
@@ -1352,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const hexStats = esPOR
       ? { spd: atributosFin.vel, pos: atributosFin.col, kic: atributosFin.saq, han: atributosFin.man, div: atributosFin.est, ref: atributosFin.ref }
       : { pac: 54, sho: atributosFin.tiro, pas: atributosFin.pase, dri: atributosFin.regate, def: atributosFin.def, phy: atributosFin.fis };
-    window.actualizarHexagono(hexStats, esPOR);
+    window.renderizarHexagono('canvas-hexagono', hexStats, esPOR);
 
     return { nombre, posicion, nacionalidad, bandera, instituto, edad, altura, pie, esPOR, atributos: atributosFin, grl };
   }
@@ -2170,6 +2175,11 @@ document.addEventListener('DOMContentLoaded', () => {
           grl: j.stats.grl || Math.round((j.stats.tiro + j.stats.pase + j.stats.regate + (j.stats.defensa || 40) + 65 + 60) / 6)
         };
         grid.innerHTML = renderizarFichaGrandeJugador(jugCard);
+        const hexEsPOR = jugCard.posicion === 'POR';
+        const hexStats = hexEsPOR
+          ? { div: jugCard.div || 60, han: jugCard.han || 60, kic: jugCard.kic || 60, ref: jugCard.ref || 60, spd: jugCard.spd || 60, pos: jugCard.pos || 60 }
+          : { pac: jugCard.pac || 60, sho: jugCard.tiro, pas: jugCard.pase, dri: jugCard.regate, def: jugCard.defensa, phy: jugCard.phy || 60 };
+        window.renderizarHexagono('mi-egoista-canvas-hexagono', hexStats, hexEsPOR);
         return;
       }
 
@@ -3387,6 +3397,9 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div class="ficha-stats-grid">
         ${statsGrid}
+      </div>
+      <div class="ficha-hexagono">
+        <canvas id="mi-egoista-canvas-hexagono" width="520" height="560"></canvas>
       </div>
     </div>`;
   }
@@ -5482,7 +5495,15 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       ${bloqueArma}
       ${btnOferta}
+      <div class="ficha-hexagono">
+        <canvas id="ficha-canvas-hexagono" width="520" height="560"></canvas>
+      </div>
     `;
+    const hexEsPOR = jug.posicion === 'POR';
+    const hexStats = hexEsPOR
+      ? { div: jug.div || 60, han: jug.han || 60, kic: jug.kic || 60, ref: jug.ref || 60, spd: jug.spd || 60, pos: jug.pos || 60 }
+      : { pac: jug.pac || 60, sho: jug.tiro, pas: jug.pase, dri: jug.regate, def: jug.defensa, phy: jug.phy || 60 };
+    window.renderizarHexagono('ficha-canvas-hexagono', hexStats, hexEsPOR);
     document.getElementById('ficha-modal-overlay').classList.add('active');
   };
 
