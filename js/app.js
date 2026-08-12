@@ -740,9 +740,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const POTENCIALES_CANTERA = {
-    1: { S: 0.15, A: 0.35, B: 0.40, C: 0.10 },
-    2: { S: 0.05, A: 0.20, B: 0.45, C: 0.30 },
-    3: { S: 0.01, A: 0.09, B: 0.30, C: 0.60 }
+    1: { S: 0.15, A: 0.35, B: 0.40, C: 0.09, D: 0.01 },
+    2: { S: 0.05, A: 0.20, B: 0.40, C: 0.25, D: 0.10 },
+    3: { S: 0.01, A: 0.08, B: 0.25, C: 0.40, D: 0.26 }
   };
 
   function elegirPotencial(tier) {
@@ -752,18 +752,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (r < prob) return pot;
       r -= prob;
     }
-    return 'C';
+    return 'D';
   }
 
   const RANGO_MEDIA_POTENCIAL = {
     S: { min: 58, max: 66 },
     A: { min: 54, max: 62 },
     B: { min: 50, max: 58 },
-    C: { min: 44, max: 52 }
+    C: { min: 44, max: 52 },
+    D: { min: 38, max: 46 }
   };
 
   const VALOR_POR_MEDIA_POTENCIAL = {
-    S: 300000, A: 180000, B: 100000, C: 50000
+    S: 300000, A: 180000, B: 100000, C: 50000, D: 25000
   };
 
   function generarJuvenil(clubUsuario) {
@@ -795,17 +796,92 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
+  const NUM_CANTERA = 4;
+
+  // Generar la hornada de cantera (una sola vez, a mitad de temporada)
+  function generarHornadaCantera(data) {
+    if (!data || data.tipo !== 'manager' || !data.manager) return;
+    if (!data.manager.cantera) data.manager.cantera = [];
+    if (data.manager.canteraGenerada) return;
+    const eqManager = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.find(e => e.name === data.manager.equipo) : null;
+    const hornada = [];
+    for (let i = 0; i < NUM_CANTERA; i++) {
+      const c = generarJuvenil(eqManager);
+      if (c) hornada.push(c);
+    }
+    data.manager.cantera.push(...hornada);
+    data.manager.canteraGenerada = true;
+    const buzon = data.manager.buzon || { mensajes: [] };
+    buzon.mensajes.unshift({
+      id: 'cantera_' + Date.now(),
+      remitente: 'Director de Cantera',
+      asunto: '¡NUEVAS PROMESAS EN LA CANTERA!',
+      cuerpo: `La cantera de ${data.manager.equipo} ha descubierto una hornada de ${hornada.length} jóvenes talentos. Revisa el apartado PRÓXIMOS EGOÍSTAS y decide quién sube al primer equipo.`,
+      leido: false,
+      jornada: data.manager.temporada?.jornadaActual ?? 0,
+      tipo: 'info'
+    });
+    data.manager.buzon = buzon;
+  }
+
+  // Subir un canterano al primer equipo (100% gratuito)
+  window.subirCanterano = function (jugadorId) {
+    const saved = BL.core.leerGuardado();
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    const cantera = data.manager.cantera || [];
+    const idx = cantera.findIndex(c => c.id === jugadorId);
+    if (idx === -1) return;
+    const c = cantera[idx];
+    const teamId = teamIdPorNombre(data.manager.equipo);
+    if (!teamId) return;
+    const jugador = normalizarJugador({ ...c });
+    if (typeof ligaDeClubId === 'function') jugador.liga = ligaDeClubId(teamId) || jugador.liga;
+    if (!data.manager.equipos) data.manager.equipos = {};
+    if (!Array.isArray(data.manager.equipos[teamId])) data.manager.equipos[teamId] = [];
+    jugador.dorsal = data.manager.equipos[teamId].length + 1;
+    data.manager.equipos[teamId].push(jugador);
+    cantera.splice(idx, 1);
+    data.manager.cantera = cantera;
+    BL.core.guardarPartida(data);
+    cerrarFicha();
+    mostrarModal('¡PROMESA SUBIDA AL PRIMER EQUIPO!', `${c.nombre} ya forma parte de la plantilla de ${data.manager.equipo}.`);
+  };
+
   window.renderCantera = function () {
     reproducirMusicaPantalla('inspiration');
     const cont = document.getElementById('cantera-content');
     if (!cont) return;
-    cont.innerHTML = `
-      <div class="bl-card" style="text-align:center;padding:20px;">
-        <i class="fas fa-gem" style="font-size:2rem;color:var(--blue-lock-cyan);margin-bottom:8px;"></i>
-        <p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;">
-          La cantera se está desarrollando. Pronto podrás descubrir a las próximas promesas egoístas de tu club.
-        </p>
-      </div>`;
+    const vacia = `<div class="bl-card" style="text-align:center;padding:20px;">
+      <i class="fas fa-gem" style="font-size:2rem;color:var(--blue-lock-cyan);margin-bottom:8px;"></i>
+      <p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;">
+        La cantera se está desarrollando. Descubrirás a las próximas promesas egoístas de tu club a mitad de temporada.
+      </p>
+    </div>`;
+    const saved = BL.core.leerGuardado();
+    if (!saved) { cont.innerHTML = vacia; return; }
+    let data;
+    try { data = JSON.parse(saved); } catch (e) { cont.innerHTML = vacia; return; }
+    if (data.tipo !== 'manager' || !data.manager) { cont.innerHTML = vacia; return; }
+    const cantera = data.manager.cantera || [];
+    if (cantera.length === 0) { cont.innerHTML = vacia; return; }
+
+    let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <h3 style="margin:0;font-size:0.95rem;color:var(--blue-lock-cyan);text-transform:uppercase;letter-spacing:1px;">Promesas de la cantera</h3>
+      <span style="font-size:0.75rem;color:var(--text-muted);">${cantera.length} jugadores</span>
+    </div>`;
+    html += `<div style="display:flex;flex-direction:column;gap:8px;">`;
+    cantera.forEach((c, idx) => {
+      try {
+        const jug = normalizarJugador({ ...c });
+        html += `<div class="plantilla-card-wrapper anim-fila"${animFila(idx)} onclick="abrirFichaJugador('${c.id}')">
+          ${renderizarFilaStats(jug)}
+        </div>`;
+      } catch (e) { console.error('Error pintando canterano', c?.id, e); }
+    });
+    html += `</div>`;
+    cont.innerHTML = html;
   };
 
   window.renderBuzon = function () {
@@ -5174,6 +5250,14 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Hornada de cantera a mitad de temporada (una sola vez)
+    try {
+      if (temporada.jornadaActual === Math.floor(calendario.length / 2)) {
+        generarHornadaCantera(data);
+        BL.core.guardarPartida(JSON.stringify(data));
+      }
+    } catch (e) { console.error('Error generando cantera:', e); }
+
     const jornada = calendario[temporada.jornadaActual];
     const partidoUsuario = jornada.find(([l, v]) => l === eqManager.id || v === eqManager.id);
     if (!partidoUsuario) return;
@@ -5347,6 +5431,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const ag = AGENTES_LIBRES.find(p => p.id === jugadorId);
         if (ag) jug = normalizarJugador({ ...ag });
       }
+      if (!jug) {
+        try {
+          const d = BL.core.cargarPartida();
+          const cantera = d?.manager?.cantera || [];
+          const cc = cantera.find(p => p.id === jugadorId);
+          if (cc) jug = normalizarJugador({ ...cc });
+        } catch (e) { /* noop */ }
+      }
       if (!jug) { cerrarFicha(); return; }
       const extra = FICHA_DATOS[jugadorId] || {};
       jug.altura = jug.altura || extra.altura || 175;
@@ -5388,6 +5480,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (saved && jugadorId !== 'player') {
         const data = JSON.parse(saved);
         if (data.tipo === 'manager' && data.manager) {
+          if (String(jugadorId).startsWith('cantera_')) {
+            btnOferta = `<button class="ficha-oferta-btn" onclick="subirCanterano('${jugadorId}')">
+              <i class="fas fa-arrow-up"></i> SUBIR AL PRIMER EQUIPO (GRATIS)
+            </button>`;
+          } else {
           const propios = new Set(getPlantillaEquipo(data.manager.equipo).map(p => p.id));
           if (propios.has(jug.id)) {
             const enLT = estaEnListaTraspasos(jug.id);
@@ -5414,6 +5511,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <i class="fas fa-handshake"></i> ${puede ? 'HACER OFERTA' : 'PRESUPUESTO INSUFICIENTE'}
               </button>
             </div>`;
+          }
           }
         }
       }
