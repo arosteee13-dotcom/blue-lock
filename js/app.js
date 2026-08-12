@@ -21,6 +21,26 @@ document.addEventListener('DOMContentLoaded', () => {
   // Utilidades compartidas para los módulos (acceso perezoso a helpers del motor)
   BL.util.actualizarMonedasUI = function () { actualizarMonedasUI(); };
   BL.util.animFila = function (idx) { return animFila(idx); };
+  BL.util.elegirMejorOnce = function (plantilla, formacion) { return elegirMejorOnce(plantilla, formacion); };
+  BL.util.getPlantillaEquipo = function (nombre) { return getPlantillaEquipo(nombre); };
+  BL.util.aplicarResultado = function (clasif, l, v, gl, gv) { aplicarResultado(clasif, l, v, gl, gv); };
+  BL.util.getPlantillaPorNombre = function (nombre) { return getPlantillaPorNombre(nombre); };
+  BL.util.getJugador = function (id, equipo) { return getJugador(id, equipo); };
+  BL.util.teamIdPorNombre = function (nombre) { return teamIdPorNombre(nombre); };
+  BL.util.nombreEquipoPorId = function (id) { return nombreEquipoPorId(id); };
+  BL.util.normalizarJugador = function (j) { return normalizarJugador(j); };
+  BL.util.sumarRendimiento = function (jugId, cambios) { sumarRendimiento(jugId, cambios); };
+  BL.util.ligaDeClubId = function (id) { return ligaDeClubId(id); };
+  BL.util.getTemporada = function (data) { return getTemporada(data); };
+  BL.util.getLigaDeManager = function (data) { return getLigaDeManager(data); };
+  BL.util.sincronizarSlotActivo = function () { sincronizarSlotActivo(); };
+  BL.util.alineacionEntrenador = function (data) { return alineacionEntrenador(data); };
+  BL.util.simularPartidoFondo = function (data, lid, vid) { return simularPartidoFondoDesdeData(data, lid, vid); };
+  BL.util.descontarEstaminaEquipoNPC = function (data, teamId) { descontarEstaminaEquipoNPC(data, teamId); };
+  BL.util.repartirGolesNPC = function (data, teamId, goles) { repartirGolesNPCMemoria(data, teamId, goles); };
+  BL.util.plantillaDesdeData = function (data, teamId) { return plantillaDesdeData(data, teamId); };
+  BL.util.sumarRendimientoBatch = function (jugId, cambios) { sumarRendimientoBatch(jugId, cambios); };
+  BL.util.persistirRendimiento = function () { persistirRendimiento(); };
 
   let plantillaSort = { by: 'posicion', asc: true };
   let plantillaVista = 'info';
@@ -106,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const RENDIMIENTO_DEFAULT = () => ({
     partidosJugados: 0, goles: 0, asistencias: 0, paradas: 0,
-    tarjetasAmarillas: 0, tarjetasRojas: 0, notaMedia: 0.0
+    tarjetasAmarillas: 0, tarjetasRojas: 0, notaMedia: 0.0, mvps: 0
   });
 
   let rendimientoCache = null;
@@ -547,33 +567,107 @@ document.addEventListener('DOMContentLoaded', () => {
     return '—';
   }
 
-  function generarMensajeOfertasContrato(manager) {
+  // Genera las 3 ofertas iniciales de clubes (instituto-con-equipo primero si aplica)
+  function generarOfertasIniciales(manager) {
     const clubes = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.slice() : [];
-    for (let i = clubes.length - 1; i > 0; i--) {
+    const instituto = manager?.egoista?.instituto || '';
+    const clubInstituto = instituto ? (clubes.find(eq => eq.name === instituto) || null) : null;
+
+    const pool = clubInstituto ? clubes.filter(eq => eq.id !== clubInstituto.id) : clubes;
+    for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [clubes[i], clubes[j]] = [clubes[j], clubes[i]];
+      [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    const seleccion = clubes.slice(0, 3);
-    const ofertas = seleccion.map((eq, idx) => ({
+    const seleccion = clubInstituto ? [clubInstituto, ...pool.slice(0, 2)] : pool.slice(0, 3);
+    return seleccion.map((eq, idx) => ({
       id: 'ct_' + idx + '_' + Math.floor(Math.random() * 99999),
       clubId: eq.id,
       club: eq.name,
-      liga: ligaDeClubId(eq.id),
-      sueldo: typeof eq.budget === 'number' ? eq.budget : 0
+      liga: ligaDeClubId(eq.id)
     }));
-    return [{
-      id: 'm_contrato_' + Date.now(),
-      remitente: 'Agente de Fútbol',
-      asunto: 'OFERTAS DE CONTRATO — ¡Elige tu primer club!',
-      cuerpo: `Como agente libre, ${manager?.egoista?.nombre || 'tu Egoísta'} ha recibido 3 ofertas para debutar. Elige con qué club firmar.`,
-      leido: false,
-      jornada: 0,
-      tipo: 'oferta',
-      contrato: true,
-      ofertas
-    }];
   }
 
+  // ===== MODAL OFERTAS INICIALES DE CLUBES =====
+
+  window.cerrarModalOfertas = function () {
+    document.getElementById('modal-ofertas-iniciales').classList.remove('active');
+  };
+
+  window.abrirModalOfertasIniciales = function () {
+    const overlay = document.getElementById('modal-ofertas-iniciales');
+    const cont = document.getElementById('ofertas-iniciales-content');
+    if (!overlay || !cont) return;
+    const saved = BL.core.leerGuardado();
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    if (!data.manager.eleccionEquipoPendiente) return;
+    const ofertas = data.manager.ofertasIniciales || [];
+    if (ofertas.length === 0) return;
+    const valor = VALOR_POSICION[data.manager.egoista?.posicion] || 1500000;
+
+    cont.innerHTML = ofertas.map(o => `
+      <div class="oferta-club-card">
+        <div class="oferta-club-logo">${htmlEscudoEquipo(o.club)}</div>
+        <div class="oferta-club-info">
+          <span class="oferta-club-nombre">${o.club}</span>
+          <span class="oferta-club-liga">${o.liga || '—'}</span>
+          <span class="oferta-club-valor"><i class="fas fa-coins"></i> ${formatearYenesCompleto(valor)}</span>
+        </div>
+        <button class="oferta-club-btn" onclick="aceptarOfertaInicial('${o.clubId}')">
+          <i class="fas fa-pen-nib"></i> ACEPTAR CONTRATO
+        </button>
+      </div>`).join('');
+
+    overlay.classList.add('active');
+  };
+
+  window.aceptarOfertaInicial = function (clubId) {
+    const saved = BL.core.leerGuardado();
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    const oferta = (data.manager.ofertasIniciales || []).find(o => o.clubId === clubId);
+    if (!oferta) return;
+
+    const valor = VALOR_POSICION[data.manager.egoista?.posicion] || 1500000;
+    data.manager.equipo = oferta.club;
+    data.manager.presupuesto = valor;
+    data.manager.eleccionEquipoPendiente = false;
+    if (data.manager.egoista) data.manager.egoista.equipo = oferta.club;
+    const fich = (data.manager.fichajes || []).find(f => f.id === 'egoista');
+    if (fich) { fich.equipo = oferta.club; fich.agenteLibre = false; }
+
+    // El Egoísta pasa a formar parte de la plantilla del club (juega, sale en la alineación y acumula estadísticas)
+    const teamId = teamIdPorNombre(oferta.club);
+    if (teamId) {
+      const jugador = normalizarJugador({ ...fich, id: 'egoista' });
+      if (typeof ligaDeClubId === 'function') jugador.liga = ligaDeClubId(teamId) || jugador.liga;
+      if (!data.manager.equipos) data.manager.equipos = {};
+      if (!Array.isArray(data.manager.equipos[teamId])) data.manager.equipos[teamId] = [];
+      const yaEnPlantilla = data.manager.equipos[teamId].some(p => p.id === 'egoista');
+      if (!yaEnPlantilla) {
+        jugador.dorsal = data.manager.equipos[teamId].length + 1;
+        data.manager.equipos[teamId].push(jugador);
+      }
+    }
+
+    if (!data.manager.buzon) data.manager.buzon = { mensajes: [] };
+    data.manager.buzon.mensajes.unshift({
+      id: 'ctr_' + Date.now(),
+      remitente: 'Oficina del Club',
+      asunto: 'CONTRATO FIRMADO',
+      cuerpo: `Bienvenido a tu nuevo club ${oferta.club}. Tu Egoísta ha debutado oficialmente.`,
+      leido: false,
+      jornada: 0,
+      tipo: 'info'
+    });
+
+    BL.core.guardarPartida(data);
+    sincronizarSlotActivo();
+    cerrarModalOfertas();
+    renderHub();
+  };
   window.firmarContrato = function (msgId, ofertaId) {
     let saved = BL.core.leerGuardado();
     if (!saved) return;
@@ -884,6 +978,72 @@ document.addEventListener('DOMContentLoaded', () => {
     cont.innerHTML = html;
   };
 
+  // ===== PALMARÉS (vitrina de trofeos) =====
+
+  // Una copa por cada liga del juego (todos los países)
+  function listarTrofeos() {
+    const trofeos = [];
+    if (typeof CONFIG_PAISES !== 'undefined') {
+      CONFIG_PAISES.forEach(pais => {
+        (pais.ligas || []).forEach(l => {
+          trofeos.push({ id: l.nombre, nombre: l.nombre, pais: pais.bandera || '', icono: 'fas fa-trophy' });
+        });
+      });
+    }
+    if (trofeos.length === 0 && typeof NEO_LIGAS !== 'undefined') {
+      Object.keys(NEO_LIGAS).forEach(key => {
+        const l = NEO_LIGAS[key];
+        trofeos.push({ id: l.name, nombre: l.name, pais: '', icono: 'fas fa-trophy' });
+      });
+    }
+    return trofeos;
+  }
+
+  window.renderPalmares = function () {
+    reproducirMusicaPantalla('inspiration');
+    const cont = document.getElementById('palmares-content');
+    if (!cont) return;
+    const data = BL.core.cargarPartida();
+    const ganados = (data?.manager?.palmares || []);
+    cont.innerHTML = listarTrofeos().map(t => {
+      const ganado = ganados.includes(t.id);
+      return `
+        <div class="trofeo-card ${ganado ? 'ganado' : ''}">
+          <span class="trofeo-bandera">${t.pais}</span>
+          <i class="${t.icono} trofeo-icono ${ganado ? 'ganado' : 'bloqueado'}"></i>
+          <span class="trofeo-nombre">${t.nombre}</span>
+          <span class="trofeo-estado">${ganado ? 'GANADO' : 'SIN CONQUISTAR'}</span>
+        </div>`;
+    }).join('');
+  };
+
+  // ===== ESTRATEGIA (solo lectura: alineación del míster) =====
+  // ===== ESTADÍSTICAS (temporada del jugador) =====
+  window.renderEstadisticas = function () {
+    reproducirMusicaPantalla('inspiration');
+    const cont = document.getElementById('estadisticas-content');
+    if (!cont) return;
+    const data = BL.core.cargarPartida();
+    if (!data || data.tipo !== 'manager' || !data.manager) { cont.innerHTML = ''; return; }
+    const r = data.manager.rendimiento?.egoista || {};
+
+    const stat = (icono, etiqueta, valor, color) => `
+      <div class="estadistica-stat" style="border-color:${color};">
+        <i class="${icono}"></i>
+        <span class="estadistica-valor">${valor}</span>
+        <span class="estadistica-label">${etiqueta}</span>
+      </div>`;
+
+    cont.innerHTML = `
+      <div class="estadisticas-grid">
+        ${stat('fas fa-futbol', 'GOLES', r.goles || 0, 'var(--blue-lock-cyan)')}
+        ${stat('fas fa-bullseye', 'ASISTENCIAS', r.asistencias || 0, '#7cf7c4')}
+        ${stat('fas fa-shirt', 'PARTIDOS', r.partidosJugados || 0, '#ffd700')}
+        ${stat('fas fa-star', 'NOTA MEDIA', (r.notaMedia || 0).toFixed(1), 'var(--gold-ego)')}
+      </div>
+    `;
+  };
+
   window.renderBuzon = function () {
     reproducirMusicaPantalla('bedroom');
     const cont = document.getElementById('buzon-lista');
@@ -928,11 +1088,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function cargarEstado() {
     const saved = BL.core.leerGuardado() || BL.core.leerLegacy();
 
-    // Ocultar los continuar por defecto (el de manager siempre visible: abre el selector de slots)
-    ['btn-continuar-jugador', 'btn-continuar-historia'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
+    // Ocultar los continuar por defecto (el de manager y el de crear egoísta siempre visibles: abren el selector de slots)
+    const btnHistoria = document.getElementById('btn-continuar-historia');
+    if (btnHistoria) btnHistoria.style.display = 'none';
+    const btnJugador = document.getElementById('btn-continuar-jugador');
+    if (btnJugador) btnJugador.style.display = 'flex';
     const btnManager = document.getElementById('btn-continuar-manager');
     if (btnManager) btnManager.style.display = 'flex';
 
@@ -950,6 +1110,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!Array.isArray(data.manager.listaTraspasos)) data.manager.listaTraspasos = [];
           if (!data.manager.rendimiento || typeof data.manager.rendimiento !== 'object') data.manager.rendimiento = {};
           if (!data.manager.fichajes || !Array.isArray(data.manager.fichajes)) data.manager.fichajes = [];
+          if (!Array.isArray(data.manager.palmares)) data.manager.palmares = [];
 
           // Re-sincronizar las plantillas base inyectadas con la base de datos actual
           // (aplica retroactivamente ediciones de stats/grl de PLANTILLAS_EQUIPO)
@@ -967,10 +1128,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        if (data.tipo === 'jugador') {
-          const btn = document.getElementById('btn-continuar-jugador');
-          if (btn) btn.style.display = 'flex';
-        } else if (data.tipo !== 'manager') {
+        if (data.tipo !== 'manager') {
           const btn = document.getElementById('btn-continuar-historia');
           if (btn) btn.style.display = 'flex';
         }
@@ -1177,6 +1335,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (panel) {
       panel.querySelectorAll('.mercado-opt').forEach(o => {
         o.classList.toggle('active', o.dataset.val === valor);
+      });
+      panel.classList.remove('open');
+    }
+    renderizarFichaEgoista();
+  };
+
+  window.generarListaInstitutos = function () {
+    const panel = document.getElementById('mercado-instituto-panel');
+    if (!panel) return;
+    const actual = document.getElementById('input-instituto')?.value || '';
+    const institutos = (typeof NEO_EQUIPOS !== 'undefined')
+      ? NEO_EQUIPOS.filter(eq => eq.domesticLeague === 'Institutos').map(eq => eq.name).sort((a, b) => a.localeCompare(b, 'es'))
+      : [];
+    let html = `<button type="button" class="mercado-opt ${actual === '' ? 'active' : ''}" data-val="" onclick="elegirInstituto('')">— Sin instituto</button>`;
+    html += institutos.map(nombre =>
+      `<button type="button" class="mercado-opt ${actual === nombre ? 'active' : ''}" data-val="${nombre}" onclick="elegirInstituto('${nombre.replace(/'/g, "\\'")}')">${nombre}</button>`
+    ).join('');
+    panel.innerHTML = html;
+  };
+
+  window.elegirInstituto = function (nombre) {
+    const label = document.getElementById('instituto-label');
+    if (label) label.textContent = nombre || '—';
+    const input = document.getElementById('input-instituto');
+    if (input) input.value = nombre;
+    const panel = document.getElementById('mercado-instituto-panel');
+    if (panel) {
+      panel.querySelectorAll('.mercado-opt').forEach(o => {
+        o.classList.toggle('active', o.dataset.val === nombre);
       });
       panel.classList.remove('open');
     }
@@ -1399,7 +1586,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = (id, txt) => { const e = document.getElementById(id); if (e && !e.querySelector('input, select')) e.textContent = txt; };
     el('ficha-nombre-pantalla', nombre.toUpperCase());
     el('ficha-nacionalidad-pantalla', nacionalidad ? `${bandera} ${nacionalidad}` : '🌍 —');
-    el('ficha-instituto-pantalla', instituto);
+    el('instituto-label', instituto || '—');
     el('ficha-posicion-pantalla', posicion || '—');
     el('ficha-edad-pantalla', String(edad));
     el('altura-label', altura);
@@ -1444,6 +1631,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!valueEl || !input) return;
     const inp = valueEl.querySelector('input');
     input.value = inp ? inp.value : '';
+    valueEl.innerHTML = '';
     renderizarFichaEgoista();
   }
 
@@ -1456,6 +1644,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isNaN(v)) v = parseInt(input.value, 10) || min;
     v = Math.max(min, Math.min(max, v));
     input.value = v;
+    valueEl.innerHTML = '';
     renderizarFichaEgoista();
   }
 
@@ -1465,6 +1654,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!valueEl || !input) return;
     const sel = valueEl.querySelector('select');
     if (sel) input.value = sel.value;
+    valueEl.innerHTML = '';
     renderizarFichaEgoista();
   }
 
@@ -1474,7 +1664,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!valueEl || !input || valueEl.querySelector('input, select')) return;
     valueEl.innerHTML = `<input type="text" class="ficha-inline-input" maxlength="${maxlen}" value="${String(input.value || '').replace(/"/g, '&quot;')}">`;
     const inp = valueEl.querySelector('input');
-    inp.focus(); inp.select();
+    inp.focus();
+    inp.setSelectionRange(inp.value.length, inp.value.length);
     inp.addEventListener('blur', function () { commitFilaTexto(valueId, inputId); });
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); commitFilaTexto(valueId, inputId); } });
   };
@@ -1485,7 +1676,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!valueEl || !input || valueEl.querySelector('input, select')) return;
     valueEl.innerHTML = `<input type="number" class="ficha-inline-input" min="${min}" max="${max}" value="${input.value || ''}">`;
     const inp = valueEl.querySelector('input');
-    inp.focus(); inp.select();
+    inp.focus();
     inp.addEventListener('blur', function () { commitFilaNumero(valueId, inputId, min, max); });
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); commitFilaNumero(valueId, inputId, min, max); } });
   };
@@ -1508,19 +1699,137 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let egoistaAvatarUrl = '';
 
+  // Redimensionar una imagen a máx. 300x300 y devolver un dataURL compacto (compartido)
+  function redimensionarAvatar(archivo, callback) {
+    const reader = new FileReader();
+    reader.onload = function () {
+      const imagen = new Image();
+      imagen.onload = function () {
+        const max = 300;
+        let w = imagen.width;
+        let h = imagen.height;
+        if (w > max || h > max) {
+          const ratio = Math.min(max / w, max / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imagen, 0, 0, w, h);
+        callback(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      imagen.onerror = function () {
+        mostrarModal('ERROR', 'No se pudo leer la imagen seleccionada.');
+      };
+      imagen.src = reader.result;
+    };
+    reader.onerror = function () {
+      mostrarModal('ERROR', 'No se pudo leer el archivo seleccionado.');
+    };
+    reader.readAsDataURL(archivo);
+  }
+
+  // Guardar el avatar del Egoísta en el save y refrescar hub + ficha
+  window.guardarAvatarJugador = function (dataUrl) {
+    const data = BL.core.cargarPartida();
+    if (!data || data.tipo !== 'manager' || !data.manager) return;
+    if (data.manager.egoista) data.manager.egoista.avatar = dataUrl;
+    if (data.manager.egoistaCreado) data.manager.egoistaCreado.avatar = dataUrl;
+    const fich = (data.manager.fichajes || []).find(f => f.id === 'egoista');
+    if (fich) fich.foto = dataUrl;
+    BL.core.guardarPartida(data);
+    sincronizarSlotActivo();
+    cerrarModalAvatar();
+    renderHub();
+    abrirFichaJugador('egoista');
+  };
+
+  // Quitar el avatar del Egoísta y volver al predeterminado
+  window.eliminarAvatarJugador = function () {
+    const data = BL.core.cargarPartida();
+    if (!data || data.tipo !== 'manager' || !data.manager) return;
+    if (data.manager.egoista) data.manager.egoista.avatar = 'assets/players/default.png';
+    if (data.manager.egoistaCreado) data.manager.egoistaCreado.avatar = 'assets/players/default.png';
+    const fich = (data.manager.fichajes || []).find(f => f.id === 'egoista');
+    if (fich) fich.foto = 'assets/players/default.png';
+    BL.core.guardarPartida(data);
+    sincronizarSlotActivo();
+    cerrarModalAvatar();
+    renderHub();
+    abrirFichaJugador('egoista');
+  };
+
+  // Modal de opciones de avatar (encima de la ficha del jugador)
+  window.abrirModalAvatar = function () {
+    const overlay = document.getElementById('modal-avatar-opciones');
+    if (!overlay) return;
+    const data = BL.core.cargarPartida();
+    const foto = data?.manager?.egoista?.avatar || data?.manager?.egoistaCreado?.avatar || 'assets/players/default.png';
+    const img = document.getElementById('avatar-modal-foto');
+    if (img) img.src = foto;
+    const btnQuitar = document.getElementById('btn-avatar-quitar');
+    if (btnQuitar) btnQuitar.style.display = (typeof foto === 'string' && foto.startsWith('data:')) ? '' : 'none';
+    overlay.classList.add('active');
+  };
+
+  window.cerrarModalAvatar = function () {
+    document.getElementById('modal-avatar-opciones').classList.remove('active');
+  };
+
+  window.elegirAvatarArchivo = function () {
+    const input = document.getElementById('input-avatar-ficha');
+    if (!input) return;
+    input.onchange = function () {
+      const archivo = input.files && input.files[0];
+      if (!archivo) return;
+      if (!/^image\//.test(archivo.type)) {
+        mostrarModal('ERROR', 'El archivo debe ser una imagen.');
+        return;
+      }
+      if (archivo.size > 5 * 1024 * 1024) {
+        mostrarModal('ERROR', 'La imagen es demasiado grande (máx. 5 MB).');
+        return;
+      }
+      redimensionarAvatar(archivo, guardarAvatarJugador);
+      input.value = '';
+    };
+    input.click();
+  };
+
   (function initAvatarEgoista() {
     const contAvatar = document.getElementById('contenedor-avatar-crear');
-    if (!contAvatar) return;
-    contAvatar.addEventListener('click', function () {
-      const url = prompt('Introduce la URL de tu avatar (imagen de internet):');
-      if (!url || !/^https?:\/\/.+/i.test(url.trim())) return;
-      egoistaAvatarUrl = url.trim();
+    const inputFile = document.getElementById('input-avatar-archivo');
+    if (!contAvatar || !inputFile) return;
+
+    function aplicarAvatar(dataUrl) {
+      egoistaAvatarUrl = dataUrl;
       const img = document.getElementById('ficha-avatar');
       if (img) {
         img.style.display = '';
         contAvatar.classList.remove('sin-avatar');
-        img.src = url;
+        img.src = dataUrl;
       }
+    }
+
+    contAvatar.addEventListener('click', function () {
+      inputFile.click();
+    });
+
+    inputFile.addEventListener('change', function () {
+      const archivo = inputFile.files && inputFile.files[0];
+      if (!archivo) return;
+      if (!/^image\//.test(archivo.type)) {
+        mostrarModal('ERROR', 'El archivo debe ser una imagen.');
+        return;
+      }
+      if (archivo.size > 5 * 1024 * 1024) {
+        mostrarModal('ERROR', 'La imagen es demasiado grande (máx. 5 MB).');
+        return;
+      }
+      redimensionarAvatar(archivo, aplicarAvatar);
+      inputFile.value = '';
     });
   })();
 
@@ -1635,6 +1944,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function abrirPlantillaEquipo(nombre, plantilla) {
     document.getElementById('plantilla-titulo').textContent = 'PLANTILLA';
+    document.getElementById('plantilla-conteo').textContent = plantilla && plantilla.length ? '(' + plantilla.length + ' jugadores)' : '';
     document.getElementById('plantilla-equipo').textContent = nombre;
     document.getElementById('plantilla-tabs').style.display = '';
     document.getElementById('plantilla-sort-bar').style.display = '';
@@ -1751,6 +2061,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cj-menu').style.display = 'none';
     document.getElementById('cj-form').style.display = 'flex';
     generarListaAlturas();
+    generarListaInstitutos();
     renderizarFichaEgoista();
   };
 
@@ -1780,10 +2091,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  window.mostrarSlotsManager = function () {
+  let slotsOrigenActual = 'carrera';
+
+  function origenDeSlot(slot) {
+    if (slot && slot.origen) return slot.origen;
+    return (slot?.data?.manager?.egoistaCreado) ? 'egoista' : 'carrera';
+  }
+
+  window.mostrarSlotsManager = function (origen) {
+    slotsOrigenActual = origen || 'carrera';
     sincronizarSlotActivo();
-    const slots = getManagerSlots();
-    document.getElementById('modal-title').innerHTML = '<i class="fas fa-save"></i> CARGAR PARTIDA';
+    const slots = getManagerSlots().filter(s => origenDeSlot(s) === slotsOrigenActual);
+    const titulo = slotsOrigenActual === 'egoista'
+      ? '<i class="fas fa-save"></i> TUS EGOÍSTAS'
+      : '<i class="fas fa-save"></i> CARGAR PARTIDA (MODO CARRERA)';
+    document.getElementById('modal-title').innerHTML = titulo;
 
     if (slots.length === 0) {
       document.getElementById('modal-body').innerHTML = `
@@ -1800,11 +2122,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const fecha = slot.fechaGuardado ? new Date(slot.fechaGuardado) : (slot.fechaCreacion ? new Date(slot.fechaCreacion) : null);
       const fechaTxt = fecha ? fecha.toLocaleString('es-ES') : '—';
       const semana = typeof slot.semana === 'number' ? slot.semana : (slot.data?.manager?.semana || 0);
+      const esEgoista = origenDeSlot(slot) === 'egoista';
+      const nombrePrincipal = esEgoista
+        ? (slot.data?.manager?.egoista?.nombre || '—')
+        : (slot.data?.manager?.nombre || '—');
+      const club = slot.data?.manager?.equipo || slot.equipo || '—';
       const activo = slot.slotId === activeId;
       html += `<div class="slot-card">
         <div class="slot-info">
-          <span class="slot-equipo">${slot.equipo || '—'}</span>
-          <span class="slot-meta">Semana ${semana} · Guardado: ${fechaTxt}</span>
+          <span class="slot-equipo">${nombrePrincipal}</span>
+          <span class="slot-meta">${club} · Semana ${semana} · Guardado: ${fechaTxt}</span>
           ${activo ? `<span class="slot-tag-activo">EN CURSO</span>` : ''}
         </div>
         <div class="slot-actions">
@@ -1844,7 +2171,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = BL.core.cargarPartida();
       if (data && data.tipo === 'manager') BL.core.borrarPartida();
     }
-    mostrarSlotsManager();
+    mostrarSlotsManager(slotsOrigenActual);
   };
 
   // Reproductor de Audio
@@ -2147,13 +2474,70 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.manager?.buzon) getBuzon(data);
     actualizarBuzonBadge();
 
-    document.getElementById('hub-nombre').textContent = data.jugador?.nombre || data.manager?.nombre || '—';
+    const esEgoista = !!(data.manager?.egoistaCreado);
+
+    // Perfil del hub: tarjeta de plantilla para el jugador, perfil clásico para el manager
+    const hubProfile = document.getElementById('hub-profile');
+    const perfilJugador = document.getElementById('hub-perfil-jugador');
+
+    // Avatar del hub: el del Egoísta (si tiene uno propio), si no icono genérico
+    const hubAvatar = document.getElementById('hub-avatar');
+    if (hubAvatar) {
+      const avatarSrc = data.manager?.egoista?.avatar || data.manager?.egoistaCreado?.avatar || data.jugador?.avatar || data.jugador?.foto || '';
+      const esGenerico = !avatarSrc || avatarSrc === 'assets/players/default.png';
+      hubAvatar.innerHTML = '';
+      if (esGenerico) {
+        hubAvatar.innerHTML = '<i class="fas fa-user"></i>';
+      } else {
+        const img = document.createElement('img');
+        img.src = avatarSrc;
+        img.alt = '';
+        img.addEventListener('error', function () {
+          hubAvatar.innerHTML = '<i class="fas fa-user"></i>';
+        });
+        hubAvatar.appendChild(img);
+      }
+    }
+
+    if (hubProfile) hubProfile.style.display = esEgoista ? 'none' : '';
+    if (perfilJugador) perfilJugador.style.display = esEgoista ? '' : 'none';
+
+    document.getElementById('hub-nombre').textContent = data.jugador?.nombre
+      || (esEgoista ? (data.manager?.egoista?.nombre || data.manager?.nombre) : (data.manager?.nombre || '—'));
     document.getElementById('hub-equipo').textContent = data.jugador ? data.jugador.pais : (data.manager?.equipo || 'AGENTE LIBRE');
 
     const rolEl = document.getElementById('hub-rol');
     const statsEl = document.getElementById('hub-stats');
 
-    if (data.tipo === 'jugador' && data.jugador) {
+    if (esEgoista) {
+      rolEl.textContent = 'JUGADOR';
+      const ego = data.manager.egoista || {};
+      const egoCreado = data.manager.egoistaCreado || {};
+      const rend = data.manager.rendimiento?.egoista || {};
+      // Cabecera del jugador: misma tarjeta que una fila de la plantilla
+      if (perfilJugador) {
+        const fich = (data.manager.fichajes || []).find(f => f.id === 'egoista');
+        if (fich) {
+          const jug = normalizarJugador({ ...fich });
+          jug.foto = ego.avatar || egoCreado.avatar || jug.foto;
+          if (typeof jug.valor !== 'number') jug.valor = egoCreado.valor;
+          if (!jug.instituto) jug.instituto = ego.instituto || '—';
+          perfilJugador.innerHTML = `<div class="plantilla-card-wrapper anim-fila" onclick="abrirFichaJugador('egoista')">${renderizarFilaInfo(jug)}</div>`;
+        }
+      }
+      const esPORego = ego.posicion === 'POR';
+      statsEl.innerHTML = `
+        <span><i class="fas fa-shirt"></i> PJ: ${rend.partidosJugados || 0}</span>
+        <span><i class="fas fa-futbol"></i> GOLES: ${rend.goles || 0}</span>
+        <span><i class="fas fa-bullseye"></i> ASIST: ${rend.asistencias || 0}</span>
+        ${esPORego ? `<span><i class="fas fa-hand"></i> PARADAS: ${rend.paradas || 0}</span>` : ''}
+        <span><i class="fas fa-square"></i> AMAR.: ${rend.tarjetasAmarillas || 0}</span>
+        <span><i class="fas fa-square"></i> ROJAS: ${rend.tarjetasRojas || 0}</span>
+        <span><i class="fas fa-star"></i> NOTA: ${(rend.notaMedia || 0).toFixed(1)}</span>
+        <span><i class="fas fa-bolt"></i> EGO: ${ego.puntosEgo || 0} pts</span>
+        <span><i class="fas fa-handshake"></i> Confianza: ${typeof data.manager.confianzaEntrenador === 'number' ? data.manager.confianzaEntrenador : 60}%</span>
+      `;
+    } else if (data.tipo === 'jugador' && data.jugador) {
       rolEl.textContent = 'JUGADOR';
       const j = data.jugador;
       const btnPlantilla = document.getElementById('hub-btn-plantilla');
@@ -2186,12 +2570,34 @@ document.addEventListener('DOMContentLoaded', () => {
         <span><i class="fas fa-calendar-week"></i> Semana: ${semana}</span>
         <span><i class="fas fa-store"></i> Fichajes: ${(m.fichajes || []).length}</span>
       `;
-      // Mostrar/ocultar botones que dependen de tener club
-      const conClub = !!m.equipo;
-      ['hub-btn-mercado', 'hub-btn-entrenar', 'hub-btn-tactica', 'hub-btn-cantera', 'hub-btn-calendario', 'hub-btn-clasificacion', 'hub-btn-jugar'].forEach(id => {
-        const b = document.getElementById(id);
-        if (b) b.style.display = conClub ? '' : 'none';
-      });
+    }
+
+    // Cuadrícula: pares según modo (jugador vs manager)
+    const pares = [
+      ['hub-btn-palmares', 'hub-btn-mercado'],
+      ['hub-btn-estrategia', 'hub-btn-tactica'],
+      ['hub-btn-estadisticas', 'hub-btn-cantera']
+    ];
+    pares.forEach(([egoId, managerId]) => {
+      const egoBtn = document.getElementById(egoId);
+      const mgrBtn = document.getElementById(managerId);
+      if (egoBtn) egoBtn.style.display = esEgoista ? '' : 'none';
+      if (mgrBtn) mgrBtn.style.display = esEgoista ? 'none' : '';
+    });
+
+    // Botones que dependen de tener club
+    const conClub = !!(data.manager?.equipo);
+    const idsDependientes = esEgoista
+      ? ['hub-btn-entrenar', 'hub-btn-estrategia', 'hub-btn-estadisticas', 'hub-btn-calendario', 'hub-btn-clasificacion', 'hub-btn-jugar']
+      : ['hub-btn-mercado', 'hub-btn-entrenar', 'hub-btn-tactica', 'hub-btn-cantera', 'hub-btn-calendario', 'hub-btn-clasificacion', 'hub-btn-jugar'];
+    idsDependientes.forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.style.display = conClub ? '' : 'none';
+    });
+
+    // Ofertas iniciales: modal cinematográfico por única vez
+    if (data.manager?.eleccionEquipoPendiente) {
+      abrirModalOfertasIniciales();
     }
   };
 
@@ -2265,6 +2671,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('plantilla-tabs').style.display = '';
       document.getElementById('plantilla-sort-bar').style.display = '';
       document.getElementById('plantilla-titulo').textContent = 'PLANTILLA';
+      const cntPlantilla = data.manager.equipo ? getPlantillaEquipo(data.manager.equipo).length : 0;
+      document.getElementById('plantilla-conteo').textContent = cntPlantilla ? '(' + cntPlantilla + ' jugadores)' : '';
       document.getElementById('plantilla-equipo').textContent = data.manager.equipo;
       renderPlantillaSortBar();
       renderPlantillaContent();
@@ -2335,11 +2743,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function calcularGrlJugador(jug) {
     if (!jug) return 0;
-    if (jug.grl) return jug.grl;
+    // GRL ponderado por posición.
+    // Mapeo semántico (nombres en español → claves del motor):
+    //   campo: ritmo→pac, tiro→sho, pase→pas, regate→dri, defensa→def, fisico→phy
+    //   POR:   reflejos→ref, paradas→han, posicionamiento→pos, estirada→div, velocidad→spd, saque→kic
+    const pac = jug.pac || 50, sho = jug.tiro || 50, pas = jug.pase || 50;
+    const dri = jug.regate || 50, def = jug.defensa || 50, phy = jug.phy || 50;
+    const div = jug.div || 50, han = jug.han || 50, kic = jug.kic || 50;
+    const ref = jug.ref || 50, spd = jug.spd || 50, posK = jug.pos || 50;
+
     if (jug.posicion === 'POR') {
-      return Math.round(((jug.div || 60) + (jug.han || 60) + (jug.kic || 60) + (jug.ref || 60) + (jug.spd || 60) + (jug.pos || 60)) / 6);
+      return Math.round(ref * 0.35 + han * 0.30 + posK * 0.20 + div * 0.05 + spd * 0.05 + kic * 0.05);
     }
-    return Math.round((jug.tiro + jug.pase + jug.regate + jug.defensa + (jug.pac || 60) + (jug.phy || 60)) / 6);
+    if (jug.posicion === 'DC' || jug.posicion === 'EI' || jug.posicion === 'ED') {
+      return Math.round(sho * 0.40 + dri * 0.20 + pac * 0.15 + phy * 0.15 + pas * 0.07 + def * 0.03);
+    }
+    if (jug.posicion === 'MI' || jug.posicion === 'MD') {
+      return Math.round(pas * 0.30 + dri * 0.25 + pac * 0.20 + sho * 0.12 + phy * 0.08 + def * 0.05);
+    }
+    if (jug.posicion === 'MC' || jug.posicion === 'MCO' || jug.posicion === 'MCD') {
+      return Math.round(pas * 0.35 + dri * 0.20 + phy * 0.15 + def * 0.15 + pac * 0.10 + sho * 0.05);
+    }
+    if (jug.posicion === 'CAI' || jug.posicion === 'CAD') {
+      return Math.round(pac * 0.25 + def * 0.25 + phy * 0.15 + pas * 0.15 + dri * 0.15 + sho * 0.05);
+    }
+    if (jug.posicion === 'DFC' || jug.posicion === 'LD' || jug.posicion === 'LI' || jug.posicion === 'DF') {
+      return Math.round(def * 0.40 + phy * 0.25 + pac * 0.15 + pas * 0.10 + dri * 0.07 + sho * 0.03);
+    }
+    // SD y posiciones desconocidas: promedio de seguridad
+    return Math.round((pac + sho + pas + dri + def + phy) / 6);
   }
 
   function statOrdenable(jug, key) {
@@ -3064,8 +3496,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let slotSeleccionado = null;
   let subSeleccionado = null;
+  let tacticaSoloLectura = false;
 
-  window.renderTactica = function (sinMusica) {
+  window.renderTactica = function (sinMusica, soloLectura) {
     if (!sinMusica) reproducirMusicaPantalla('inspiration');
     const saved = BL.core.leerGuardado();
     if (!saved) return;
@@ -3073,12 +3506,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.tipo !== 'manager' || !data.manager) return;
     document.getElementById('tactica-equipo').textContent = data.manager.equipo;
 
-    if (!data.manager.tactica) {
-      const jugadores = getPlantillaEquipo(data.manager.equipo);
-      const eq = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.find(e => e.name === data.manager.equipo) : null;
-      const formacion = eq?.formation || '4-3-3';
-      const { once, banca } = elegirMejorOnce(jugadores, formacion);
-      data.manager.tactica = { formacion, once, banca };
+    tacticaSoloLectura = !!soloLectura;
+
+    if (!data.manager.tactica || tacticaSoloLectura) {
+      // En solo lectura el entrenador decide la alineación (rota jugadores) y la guarda
+      data.manager.tactica = alineacionEntrenador(data);
       BL.core.guardarPartida(JSON.stringify(data));
     }
     slotSeleccionado = null;
@@ -3088,9 +3520,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const panel = document.getElementById('mercado-formacion-panel');
     if (panel) panel.querySelectorAll('.mercado-opt').forEach(o =>
       o.classList.toggle('active', o.dataset.val === data.manager.tactica.formacion));
+
+    // En solo lectura: sin selector de formación (texto estático)
+    if (tacticaSoloLectura) {
+      const filaFormacion = document.querySelector('.tactica-formacion-row');
+      if (filaFormacion) {
+        filaFormacion.innerHTML = `<span class="tactica-formacion-label">FORMACIÓN</span><span style="color:var(--blue-lock-cyan);font-weight:800;font-size:0.8rem;">${data.manager.tactica.formacion}</span>`;
+      }
+    }
     renderCampo();
     renderSuplentes();
   };
+
+  // El entrenador decide la alineación: mejor XI con rotación aleatoria de titulares
+  function alineacionEntrenador(data) {
+    const jugadores = getPlantillaEquipo(data.manager.equipo);
+    const eq = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.find(e => e.name === data.manager.equipo) : null;
+    const formacion = eq?.formation || '4-3-3';
+    const base = elegirMejorOnce(jugadores, formacion);
+    const once = base.once.slice();
+    const banca = base.banca.slice();
+    const rotaciones = 1 + Math.floor(Math.random() * 3); // 1-3 rotaciones
+
+    const compatibles = (jug) => {
+      const pos = posicionesDeJugador(jug);
+      return banca.filter(bp => {
+        const bpPos = posicionesDeJugador(bp);
+        return bpPos.some(p => pos.includes(p) || (POS_COMPATIBLES[p] || []).some(c => pos.includes(c)));
+      });
+    };
+
+    for (let r = 0; r < rotaciones && banca.length > 0; r++) {
+      const idx = Math.floor(Math.random() * once.length);
+      const titularId = once[idx];
+      const titular = jugadores.find(p => p.id === titularId);
+      const candidatos = compatibles(titular);
+      if (!titular || candidatos.length === 0) continue;
+      const suplente = candidatos[Math.floor(Math.random() * candidatos.length)];
+      once[idx] = suplente.id;
+      banca.splice(banca.indexOf(suplente.id), 1);
+      banca.push(titularId);
+    }
+    return { formacion, once, banca };
+  }
 
   function getJugador(id, equipo) {
     const fichajes = getFichajes();
@@ -3130,7 +3602,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!j.foto) j.foto = `assets/players/${j.id}.png`;
     if (typeof j.estamina !== 'number') j.estamina = 100;
     if (typeof j.agenteLibre !== 'boolean') j.agenteLibre = false;
-    if (j.pierna) j.pie = j.pierna;
+    if (j.pierna) {
+      // Pie dominante estándar: Derecha / Izquierda / Ambas
+      const PIE = { 'Derecho': 'Derecha', 'Diestro': 'Derecha', 'Zurdo': 'Izquierda', 'Izquierdo': 'Izquierda', 'Ambos': 'Ambas' };
+      j.pie = PIE[j.pierna] || j.pierna;
+    }
     if (j.altura && typeof j.altura === 'string') j.altura = parseInt(j.altura) || j.altura;
     if (j.stats) {
       if (j.posicion === 'POR') {
@@ -3649,10 +4125,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const selected = slotSeleccionado === idx;
         const nombreParts = (jug?.nombre || '').split(' ');
         const nombreMostrar = nombreParts.length > 1 ? nombreParts.slice(1).join(' ') : (jug?.nombre || '—');
-        html += `<div class="tactica-slot ${selected ? 'selected' : ''}" style="top:${fila.y}%;left:${slot.x}%;" data-idx="${idx}" onclick="clickSlot(${idx})" ondblclick="abrirFichaJugador('${jugId}')">
+        html += `<div class="tactica-slot ${selected ? 'selected' : ''}${tacticaSoloLectura ? ' solo-lectura' : ''}" style="top:${fila.y}%;left:${slot.x}%;" data-idx="${idx}" ${tacticaSoloLectura ? '' : `onclick="clickSlot(${idx})" ondblclick="abrirFichaJugador('${jugId}')"`}>
           <div class="tslot-grl">${calcularGrlJugador(jug)}</div>
           <div class="tslot-avatar">
             <img src="${jug?.foto || 'assets/players/default.png'}" onerror="this.onerror=null;this.src='assets/players/default.png';this.addEventListener('error',function(){this.style.display='none'})" alt="${jug?.nombre || ''}">
+            <i class="fas fa-user tslot-avatar-fallback"></i>
           </div>
           <div class="tslot-info">
             <span class="tslot-pos ${posColor(slot.pos) || ''}">${slot.pos || jug?.posicion || ''}</span>
@@ -3673,16 +4150,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const equipo = data.manager.equipo;
     const grid = document.getElementById('tactica-subs');
     let html = '';
-    (data.manager.tactica?.banca || []).forEach((jugId, bidx) => {
-      const jug = getJugador(jugId, equipo);
-      if (!jug) return;
+    // Suplentes ordenados por posición (se conserva el índice original para el swap)
+    const banca = data.manager.tactica?.banca || [];
+    const ordenados = banca
+      .map((jugId, idx) => ({ jugId, idx, jug: getJugador(jugId, equipo) }))
+      .filter(x => x.jug)
+      .sort((a, b) => (POS_ORDER[a.jug.posicion] ?? 99) - (POS_ORDER[b.jug.posicion] ?? 99));
+    ordenados.forEach(({ jugId, idx: bidx, jug }) => {
       const selected = subSeleccionado === bidx;
       const nombreParts = (jug.nombre || '').split(' ');
       const nombreMostrar = nombreParts.length > 1 ? nombreParts.slice(1).join(' ') : (jug.nombre || '—');
-      html += `<div class="tactica-sub-card ${selected ? 'selected' : ''}" onclick="clickSub('${jugId}', ${bidx})" ondblclick="abrirFichaJugador('${jugId}')">
+      html += `<div class="tactica-sub-card ${selected ? 'selected' : ''}${tacticaSoloLectura ? ' solo-lectura' : ''}" ${tacticaSoloLectura ? '' : `onclick="clickSub('${jugId}', ${bidx})" ondblclick="abrirFichaJugador('${jugId}')"`}>
         <div class="tslot-grl">${calcularGrlJugador(jug)}</div>
         <div class="tslot-avatar">
           <img src="${jug.foto || 'assets/players/default.png'}" onerror="this.onerror=null;this.src='assets/players/default.png';this.addEventListener('error',function(){this.style.display='none'})" alt="${jug.nombre}">
+          <i class="fas fa-user tslot-avatar-fallback"></i>
         </div>
         <div class="tslot-info">
           <span class="tslot-pos ${posColor(jug.posicion)}">${jug.posicion}</span>
@@ -4530,6 +5012,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // Rendimiento de temporada: registrar partido jugado + nota para el once del manager
       const miEquipo = data.manager.equipo;
       const onceIds = onceIdsDeManager(data);
+      let mejorNota = -1;
+      let mejorId = null;
       onceIds.forEach(id => {
         const j = getJugador(id, miEquipo);
         sumarRendimiento(id, { partidosJugados: 1 });
@@ -4541,8 +5025,14 @@ document.addEventListener('DOMContentLoaded', () => {
           nota -= r.tarjetasRojas > 0 ? 2 : 0;
           nota -= r.tarjetasAmarillas > 0 ? 0.5 : 0;
           aplicarNota(id, nota);
+          if (nota > mejorNota) { mejorNota = nota; mejorId = id; }
         }
       });
+      // MVP del partido: el jugador del once con mejor nota
+      if (mejorId) {
+        const rMvp = getRendimiento(mejorId);
+        rMvp.mvps = (rMvp.mvps || 0) + 1;
+      }
       // Rival del partido del usuario: registrar partido jugado a su once
       const rivalId = ctx.esLocal ? partidoUsuario[1] : partidoUsuario[0];
       const rivalNombre2 = nombreEquipoPorId(rivalId);
@@ -4792,11 +5282,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function elegirTipoEvento() {
     const PESOS_EVENTO = [
-      { tipo: 'ataque', peso: 30 },
-      { tipo: 'defensa', peso: 25 },
-      { tipo: 'disparo', peso: 25 },
-      { tipo: 'disparoRival', peso: 12 },
-      { tipo: 'quieto', peso: 8 }
+      { tipo: 'ataque', peso: 25 },
+      { tipo: 'defensa', peso: 20 },
+      { tipo: 'disparo', peso: 35 },
+      { tipo: 'disparoRival', peso: 14 },
+      { tipo: 'quieto', peso: 6 }
     ];
     const total = PESOS_EVENTO.reduce((a, e) => a + e.peso, 0);
     let r = Math.random() * total;
@@ -4845,7 +5335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (Math.random() < 0.33) {
       escribirLogPartido(`${partidoMinuto}' · ${fraseAmbientePartido()}`, 'quiet');
     }
-    if (Math.random() < 0.16) {
+    if (Math.random() < 0.24) {
       detenerRelojPartido();
       try {
         lanzarEventoPartido();
@@ -5262,31 +5752,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const partidoUsuario = jornada.find(([l, v]) => l === eqManager.id || v === eqManager.id);
     if (!partidoUsuario) return;
 
-    const resultadosFondo = [];
-    const jornadaIdx = temporada.jornadaActual;
-    Object.keys(temporada.calendario).forEach(ligaNombre => {
-      const cal = temporada.calendario[ligaNombre];
-      if (jornadaIdx >= cal.length) return;
-      cal[jornadaIdx].forEach(([l, v]) => {
-        if (l === eqManager.id || v === eqManager.id) return;
-        const [gl, gv] = simularPartidoFondoDesdeData(data, l, v);
-        resultadosFondo.push({ l, v, gl, gv });
-        aplicarResultado(temporada.clasificacion, l, v, gl, gv);
-        descontarEstaminaEquipoNPC(data, l);
-        descontarEstaminaEquipoNPC(data, v);
-        repartirGolesNPCMemoria(data, l, gl);
-        repartirGolesNPCMemoria(data, v, gv);
-        const pl = plantillaDesdeData(data, l);
-        const pv = plantillaDesdeData(data, v);
-        [pl, pv].forEach(lista => {
-          if (Array.isArray(lista)) lista.forEach(p => {
-            if (p?.id) sumarRendimientoBatch(p.id, { partidosJugados: 1 });
-          });
-        });
-      });
-    });
-    // Persistir el rendimiento acumulado de todos los partidos de fondo de una vez
-    persistirRendimiento();
+    // Simular todos los partidos IA de la jornada (excepto el del jugador)
+    const resultadosFondo = window.simularJornadaGeneral
+      ? window.simularJornadaGeneral(temporada.jornadaActual)
+      : [];
 
     const esLocal = partidoUsuario[0] === eqManager.id;
     const rivalId = esLocal ? partidoUsuario[1] : partidoUsuario[0];
@@ -5341,7 +5810,11 @@ document.addEventListener('DOMContentLoaded', () => {
       mostrarModal('MODO JUGADOR', 'La simulación de partidos está disponible solo en el Modo Carrera (Manager).');
       return;
     }
-    iniciarJornada();
+    if (data.manager.egoistaCreado && typeof window.iniciarSimuladorJugador === 'function') {
+      window.iniciarSimuladorJugador();
+    } else {
+      iniciarJornada();
+    }
   };
 
   function mostrarProgresoSemanal(resultado) {
@@ -5437,6 +5910,18 @@ document.addEventListener('DOMContentLoaded', () => {
           const cantera = d?.manager?.cantera || [];
           const cc = cantera.find(p => p.id === jugadorId);
           if (cc) jug = normalizarJugador({ ...cc });
+          if (!jug) {
+            const fichaje = (d?.manager?.fichajes || []).find(p => p.id === jugadorId);
+            if (fichaje) {
+              jug = normalizarJugador({ ...fichaje });
+              // Ficha del Egoísta: completar datos propios (avatar, valor por posición e instituto)
+              const ego = d?.manager?.egoista || {};
+              const egoCreado = d?.manager?.egoistaCreado || {};
+              if (!jug.foto) jug.foto = ego.avatar || egoCreado.avatar || jug.foto;
+              if (typeof jug.valor !== 'number') jug.valor = egoCreado.valor;
+              if (!jug.instituto) jug.instituto = ego.instituto || '—';
+            }
+          }
         } catch (e) { /* noop */ }
       }
       if (!jug) { cerrarFicha(); return; }
@@ -5520,6 +6005,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const fotoSrc = jug.foto || 'assets/players/default.png';
+    const esFichaEgoista = jugadorId === 'egoista';
+    const avatarPersonalizado = esFichaEgoista && typeof fotoSrc === 'string' && fotoSrc.startsWith('data:');
     const tieneLogoClub = !!escudoEquipoPorNombre(jug.equipo);
     document.getElementById('ficha-content').innerHTML = `
       <div class="ficha-header"><span>BLUE LOCK PROJECT</span></div>
@@ -5563,9 +6050,10 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
         <div class="ficha-side">
-          <div class="ficha-photo">
+          <div class="ficha-photo ${esFichaEgoista ? 'ficha-photo-editable' : ''}" ${esFichaEgoista ? 'onclick="abrirModalAvatar()" title="Cambiar avatar"' : ''}>
             <img src="${fotoSrc}" onerror="this.onerror=null;this.style.display='none'" alt="${jug.nombre}">
             <i class="fas fa-user ficha-photo-fallback"></i>
+            ${esFichaEgoista ? '<span class="ficha-avatar-edit-hint"><i class="fas fa-camera"></i></span>' : ''}
           </div>
           <div class="ficha-club-emblem ${tieneLogoClub ? '' : 'con-forma'}">
             ${htmlEscudoEquipo(jug.equipo)}
@@ -5631,7 +6119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const instituto = document.getElementById('input-instituto')?.value.trim() || 'Desconocido';
     const edad = parseInt(document.getElementById('input-edad')?.value, 10) || 16;
     const alturaVal = parseInt(document.getElementById('input-altura')?.value, 10) || 175;
-    const pie = document.getElementById('select-pie')?.value || 'Derecho';
+    const pie = document.getElementById('select-pie')?.value || 'Derecha';
     const posicionSec = document.getElementById('select-possec')?.value || '';
 
     const statsBase = (typeof EGOISTA_STATS_BASE !== 'undefined') ? (EGOISTA_STATS_BASE[posicion] || {}) : {};
@@ -5697,13 +6185,29 @@ document.addEventListener('DOMContentLoaded', () => {
     save.manager.agentesLibres = (typeof AGENTES_LIBRES !== 'undefined' ? AGENTES_LIBRES : []).map(j => ({ ...j }));
     getTemporada(save);
 
-    // 3 ofertas de contrato aleatorias de clubes de cualquier liga
-    save.manager.buzon.mensajes = generarMensajeOfertasContrato(save.manager);
+    // Ofertas iniciales de clubes (modal cinematográfico en el HUB)
+    save.manager.ofertasIniciales = generarOfertasIniciales(save.manager);
+    save.manager.eleccionEquipoPendiente = true;
 
+    // Autoguardado: registrar la partida en el sistema de slots (CARGAR PARTIDA)
     BL.core.guardarPartida(JSON.stringify(save));
+    const slotId = nuevoSlotId();
+    BL.core.guardarSlotActivo(slotId);
+    const slots = getManagerSlots();
+    slots.push({
+      slotId,
+      fechaCreacion: save.fechaCreacion,
+      fechaGuardado: save.fechaCreacion,
+      equipo: save.manager.equipo || null,
+      semana: 0,
+      origen: 'egoista',
+      data: save
+    });
+    saveManagerSlots(slots);
+
     cargarEstado();
-    renderBuzon();
-    showScreen('screen-buzon');
+    renderHub();
+    showScreen('screen-hub');
   });
 
   // Formulario: Iniciar Carrera (Manager)
@@ -5791,6 +6295,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fechaGuardado: save.fechaCreacion,
       equipo,
       semana: 0,
+      origen: 'carrera',
       data: save
     });
     saveManagerSlots(slots);

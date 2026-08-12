@@ -13,6 +13,9 @@
 
   // Historia: obtener foto de personaje
   function getPersonajeFoto(nombre) {
+    if (typeof PERSONAJES_HISTORIA !== 'undefined' && PERSONAJES_HISTORIA[nombre]) {
+      return PERSONAJES_HISTORIA[nombre];
+    }
     let p = null;
     if (typeof PLANTILLAS_EQUIPO !== 'undefined') {
       for (const key of Object.keys(PLANTILLAS_EQUIPO)) {

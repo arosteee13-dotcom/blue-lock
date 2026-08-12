@@ -804,11 +804,23 @@ header {
   background: rgba(0, 243, 255, 0.1);
   box-shadow: 0 0 12px var(--blue-lock-glow);
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.hub-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .hub-info {
   flex: 1;
   min-width: 0;
+}
+
+.hub-jugador-fila {
+  margin-bottom: 12px;
 }
 
 .hub-info h2 {
@@ -1800,6 +1812,194 @@ header {
   border-radius: 8px;
 }
 
+/* ===== SIMULADOR DEL MODO JUGADOR ===== */
+.sim-feed-item {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 5px 8px;
+  border-left: 2px solid var(--bg-card-border);
+  background: rgba(0, 243, 255, 0.03);
+  border-radius: 4px;
+}
+
+.sim-feed-item .sim-feed-min {
+  color: var(--blue-lock-cyan);
+  font-weight: 800;
+  margin-right: 4px;
+}
+
+.sim-feed-item.feed-gol { border-left-color: #7cf7c4; color: #d8f8ec; }
+.sim-feed-item.feed-critico { border-left-color: var(--gold-ego); color: #fff3d6; text-shadow: 0 0 8px rgba(255, 215, 0, 0.4); }
+.sim-feed-item.feed-acierto { border-left-color: #4ade80; }
+.sim-feed-item.feed-fallo { border-left-color: var(--danger-red); color: #ffc9c9; }
+.sim-feed-item.feed-evento { border-left-color: var(--blue-lock-cyan); color: #e3fbff; }
+
+/* Convocatoria */
+.sim-conv {
+  background: rgba(2, 12, 22, 0.9);
+  border: 1px solid var(--blue-lock-cyan);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 0 20px var(--blue-lock-glow);
+}
+
+.sim-conv-estado {
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  padding: 10px;
+  border-radius: 8px;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.sim-conv-estado.titular { color: #7cf7c4; border: 1px solid #7cf7c4; background: rgba(124, 247, 196, 0.1); }
+.sim-conv-estado.banquillo { color: var(--gold-ego); border: 1px solid var(--gold-ego); background: rgba(255, 215, 0, 0.1); }
+
+.sim-conv-info {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sim-conv-info b { color: var(--blue-lock-cyan); }
+
+/* Evento crítico */
+.sim-evento {
+  background: rgba(2, 12, 22, 0.95);
+  border: 1px solid var(--gold-ego);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.25);
+}
+
+.sim-evento-titulo {
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--gold-ego);
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.sim-evento-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.duelo-rival {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.duelo-rival b {
+  color: var(--danger-red);
+}
+
+.sim-evento-btn {
+  padding: 10px 6px;
+  font-size: 0.72rem;
+  justify-content: center;
+}
+
+/* Barra de precisión */
+.precision-meta {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.precision-meta b { color: var(--blue-lock-cyan); }
+
+.precision-bar {
+  position: relative;
+  height: 34px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid var(--blue-lock-cyan);
+  margin-bottom: 6px;
+}
+
+.precision-zona { flex: 0 0 auto; height: 100%; }
+.precision-zona.pz-exito { background: rgba(0, 180, 255, 0.5); }
+.precision-zona.pz-fallo { background: rgba(255, 51, 102, 0.45); }
+
+.precision-aguja {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  background: #fff;
+  box-shadow: 0 0 10px #fff, 0 0 18px var(--blue-lock-cyan);
+  left: 50%;
+  transition: none;
+}
+
+.precision-leyenda {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.precision-leyenda .ley-rojo { color: var(--danger-red); }
+.precision-leyenda .ley-azul { color: #4d9fff; }
+
+/* Resultados */
+.sim-resultado {
+  background: rgba(2, 12, 22, 0.95);
+  border: 2px solid var(--blue-lock-cyan);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 0 24px var(--blue-lock-glow);
+  margin-top: 12px;
+}
+
+.sim-resultado.victoria { border-color: #7cf7c4; box-shadow: 0 0 24px rgba(124, 247, 196, 0.4); }
+.sim-resultado.empate { border-color: var(--gold-ego); }
+.sim-resultado.derrota { border-color: var(--danger-red); box-shadow: 0 0 24px rgba(255, 51, 102, 0.35); }
+
+.sim-resultado-score {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 2px;
+}
+
+.sim-resultado-titulo {
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  margin: 6px 0 10px;
+  color: var(--blue-lock-cyan);
+}
+
+.sim-resultado-fila {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding: 5px 0;
+  border-top: 1px solid var(--bg-card-border);
+}
+
+.sim-resultado-fila b { color: #fff; }
+.sim-resultado-fila b.nota { color: var(--gold-ego); font-size: 1rem; }
+
 .partido-log-item {
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -2751,6 +2951,15 @@ header {
   gap: 3px;
 }
 
+.tactica-slot.solo-lectura {
+  cursor: default;
+  opacity: 0.92;
+}
+
+.tactica-slot.solo-lectura:hover {
+  transform: translate(-50%, -50%);
+}
+
 .tactica-slot.selected .tslot-avatar {
   border-color: var(--gold-ego);
   box-shadow: 0 0 16px rgba(255, 215, 0, 0.6);
@@ -2780,12 +2989,24 @@ header {
   background: rgba(0, 243, 255, 0.08);
   box-shadow: 0 0 8px rgba(0, 243, 255, 0.25);
   flex-shrink: 0;
+  position: relative;
 }
 
 .tslot-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  position: relative;
+  z-index: 1;
+}
+
+.tslot-avatar-fallback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.95rem;
+  color: var(--blue-lock-cyan);
 }
 
 .tslot-info {
@@ -3181,6 +3402,15 @@ header {
   box-shadow: 0 0 10px var(--blue-lock-glow);
 }
 
+.tactica-sub-card.solo-lectura {
+  cursor: default;
+}
+
+.tactica-sub-card.solo-lectura:hover {
+  border-color: var(--bg-card-border);
+  box-shadow: none;
+}
+
 .tactica-sub-card.selected {
   border-color: var(--gold-ego);
   box-shadow: 0 0 16px rgba(255, 215, 0, 0.6);
@@ -3393,6 +3623,98 @@ header {
   background: rgba(0, 243, 255, 0.05);
   box-shadow: 0 0 25px rgba(0, 243, 255, 0.4);
   position: relative;
+}
+
+.ficha-photo-editable {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ficha-photo-editable:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.6);
+}
+
+.ficha-avatar-edit-hint {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--blue-lock-cyan);
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 3px 0;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.ficha-photo-editable:hover .ficha-avatar-edit-hint {
+  opacity: 1;
+}
+
+.ficha-avatar-acciones {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 10px 0 2px;
+}
+
+.ficha-avatar-btn {
+  background: rgba(0, 243, 255, 0.1);
+  border: 1px solid var(--blue-lock-cyan);
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--font-family);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.ficha-avatar-btn:hover {
+  box-shadow: 0 0 12px var(--blue-lock-glow);
+  background: rgba(0, 243, 255, 0.2);
+}
+
+.ficha-avatar-btn.quitar {
+  border-color: var(--danger-red);
+  color: var(--danger-red);
+  background: rgba(255, 51, 102, 0.08);
+}
+
+.ficha-avatar-btn.quitar:hover {
+  box-shadow: 0 0 12px rgba(255, 51, 102, 0.5);
+  background: rgba(255, 51, 102, 0.16);
+}
+
+/* Modal de opciones de avatar (encima de la ficha del jugador) */
+.avatar-overlay {
+  z-index: 300;
+}
+
+.avatar-opciones-content {
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+  background: #030e17;
+  border: 2px solid var(--blue-lock-cyan);
+  border-radius: 14px;
+  box-shadow: 0 0 40px var(--blue-lock-glow), inset 0 0 30px rgba(0, 243, 255, 0.06);
+}
+
+.avatar-opciones-foto {
+  margin-bottom: 14px;
+}
+
+.avatar-opciones-foto img {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 3px solid var(--blue-lock-cyan);
+  object-fit: cover;
+  box-shadow: 0 0 20px var(--blue-lock-glow);
 }
 
 .ficha-photo img {
@@ -3747,16 +4069,7 @@ header {
 }
 
 .ficha-egoista .ficha-avatar-hint {
-  position: absolute;
-  inset: auto 0 0 0;
-  background: rgba(0, 0, 0, 0.7);
-  color: var(--blue-lock-cyan);
-  font-size: 0.55rem;
-  font-weight: 800;
-  text-align: center;
-  padding: 3px 0;
-  letter-spacing: 0.5px;
-  z-index: 2;
+  display: none;
 }
 
 .historia-match {
@@ -4059,6 +4372,212 @@ header {
   box-shadow: 0 0 30px var(--blue-lock-glow);
 }
 
+/* Modal de Ofertas Iniciales de Clubes */
+.ofertas-overlay {
+  background: rgba(1, 8, 14, 0.94);
+  backdrop-filter: blur(6px);
+}
+
+.ofertas-content {
+  width: 100%;
+  max-width: 520px;
+  background: #030e17;
+  border: 2px solid var(--blue-lock-cyan);
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 0 40px var(--blue-lock-glow), inset 0 0 30px rgba(0, 243, 255, 0.06);
+  animation: modalPopIn 0.3s ease-out;
+}
+
+.oferta-club-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  background: rgba(2, 12, 22, 0.9);
+  border: 1px solid rgba(0, 243, 255, 0.35);
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.oferta-club-card:hover {
+  border-color: var(--blue-lock-cyan);
+  box-shadow: 0 0 16px var(--blue-lock-glow);
+  transform: translateY(-2px);
+}
+
+.oferta-club-logo {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 243, 255, 0.08);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 8px;
+  flex-shrink: 0;
+  font-size: 1.3rem;
+  color: var(--blue-lock-cyan);
+}
+
+.oferta-club-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.oferta-club-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.oferta-club-nombre {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oferta-club-liga {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.oferta-club-valor {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--gold-ego);
+  letter-spacing: 0.5px;
+}
+
+.oferta-club-btn {
+  background: linear-gradient(135deg, rgba(0, 243, 255, 0.22), rgba(0, 85, 255, 0.25));
+  border: 1px solid var(--blue-lock-cyan);
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--font-family);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 10px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.oferta-club-btn:hover {
+  box-shadow: 0 0 14px var(--blue-lock-glow);
+  background: linear-gradient(135deg, rgba(0, 243, 255, 0.35), rgba(0, 85, 255, 0.35));
+}
+
+/* Palmarés: vitrina de trofeos */
+.trofeo-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  background: rgba(2, 12, 22, 0.9);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 10px;
+  text-align: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.trofeo-card.ganado {
+  border-color: var(--gold-ego);
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.25);
+}
+
+.trofeo-icono {
+  font-size: 2rem;
+  transition: filter 0.3s ease;
+}
+
+.trofeo-bandera {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.trofeo-icono.bloqueado {
+  filter: grayscale(100%) opacity(0.4);
+  color: #8a97a5;
+}
+
+.trofeo-icono.ganado {
+  color: var(--gold-ego);
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.7));
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+.trofeo-nombre {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.trofeo-estado {
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.trofeo-card.ganado .trofeo-estado {
+  color: var(--gold-ego);
+}
+
+.trofeo-card:not(.ganado) .trofeo-estado {
+  color: var(--text-muted);
+}
+
+/* Estrategia (solo lectura) */
+/* Estadísticas de temporada */
+.estadisticas-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.estadistica-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 10px;
+  background: rgba(2, 12, 22, 0.9);
+  border: 1px solid var(--bg-card-border);
+  border-left: 3px solid var(--blue-lock-cyan);
+  border-radius: 10px;
+}
+
+.estadistica-stat i {
+  font-size: 1.4rem;
+  color: var(--blue-lock-cyan);
+}
+
+.estadistica-valor {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+.estadistica-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
 /* Selector de Nacionalidad (modal) */
 .nac-item {
   display: flex;
@@ -4181,7 +4700,8 @@ header {
 }
 
 .ficha-altura-dropdown .mercado-drop-btn,
-.ficha-pie-dropdown .mercado-drop-btn {
+.ficha-pie-dropdown .mercado-drop-btn,
+.ficha-instituto-dropdown .mercado-drop-btn {
   height: 100%;
   border: none;
   border-radius: 0;
@@ -4193,18 +4713,21 @@ header {
 }
 
 .ficha-altura-dropdown .mercado-drop-btn:hover,
-.ficha-pie-dropdown .mercado-drop-btn:hover {
+.ficha-pie-dropdown .mercado-drop-btn:hover,
+.ficha-instituto-dropdown .mercado-drop-btn:hover {
   background: rgba(0, 243, 255, 0.08);
   border: none;
 }
 
 .ficha-altura-dropdown .mercado-drop-panel,
-.ficha-pie-dropdown .mercado-drop-panel {
+.ficha-pie-dropdown .mercado-drop-panel,
+.ficha-instituto-dropdown .mercado-drop-panel {
   border-radius: 0;
 }
 
 .ficha-altura-dropdown .mercado-opt,
-.ficha-pie-dropdown .mercado-opt {
+.ficha-pie-dropdown .mercado-opt,
+.ficha-instituto-dropdown .mercado-opt {
   border-radius: 0;
   border: none;
   background: rgba(0, 243, 255, 0.02);
@@ -4215,13 +4738,15 @@ header {
 }
 
 .ficha-altura-dropdown .mercado-opt:hover,
-.ficha-pie-dropdown .mercado-opt:hover {
+.ficha-pie-dropdown .mercado-opt:hover,
+.ficha-instituto-dropdown .mercado-opt:hover {
   background: rgba(0, 243, 255, 0.15);
   color: #fff;
 }
 
 .ficha-altura-dropdown .mercado-opt.active,
-.ficha-pie-dropdown .mercado-opt.active {
+.ficha-pie-dropdown .mercado-opt.active,
+.ficha-instituto-dropdown .mercado-opt.active {
   background: rgba(0, 243, 255, 0.22);
   color: var(--blue-lock-cyan);
   border: none;
