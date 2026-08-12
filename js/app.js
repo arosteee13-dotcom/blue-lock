@@ -12,30 +12,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // App State
-  let gameState = {
-    monedas: 1000,
-    gemas: 50,
-    partidaGuardada: false,
-    datosPartida: null,
-    historia: {
-      partidoActual: 0,
-      completados: [],
-      estado: "menu",
-      dialogoIndex: 0,
-      dialogoTipo: "pre"
-    }
-  };
+  // App State (estado compartido definido en database-core.js)
+  const gameState = BL.estado.gameState;
 
   // Audio Global
-  let estadoAudio = {
-    volumenGeneral: 0.05,
-    sfxActivados: true,
-    musicas: {},
-    sonidosSFX: {},
-    sfxReproduciendose: null,
-    sfxIndividuales: { gol: true, arma_ego: true, silbato_arbitro: true, partido: true, tema: true, puzzle: true, despair: true, inspiration: true, intellect: true, push_forward: true, bedroom: true, ego: true, emergency: true, last_chance: true, awakening: true }
-  };
+  const estadoAudio = BL.estado.audio;
+
+  // Utilidades compartidas para los módulos (acceso perezoso a helpers del motor)
+  BL.util.actualizarMonedasUI = function () { actualizarMonedasUI(); };
+  BL.util.animFila = function (idx) { return animFila(idx); };
 
   let plantillaSort = { by: 'posicion', asc: true };
   let plantillaVista = 'info';
@@ -129,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function leerRendimientoData() {
     if (rendimientoCache) return rendimientoCache;
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return (rendimientoCache = {});
       const data = JSON.parse(saved);
       if (data.tipo !== 'manager' || !data.manager) return (rendimientoCache = {});
@@ -155,12 +140,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function persistirRendimiento() {
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return;
       const data = JSON.parse(saved);
       if (data.tipo !== 'manager' || !data.manager) return;
       data.manager.rendimiento = leerRendimientoData();
-      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      BL.core.guardarPartida(JSON.stringify(data));
       sincronizarSlotActivo();
       rendimientoCache = null;
     } catch (e) { /* noop */ }
@@ -229,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function leerEstamina(jug, teamId) {
     if (!jug || !jug.id) return ESTAMINA_MAX;
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return jug.estamina ?? ESTAMINA_MAX;
       const data = JSON.parse(saved);
       if (data.tipo !== 'manager' || !data.manager) return jug.estamina ?? ESTAMINA_MAX;
@@ -397,8 +382,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const esPOR = info.posicion === 'POR';
     const stat = (e, v) => `<div class="pfila-stat"><span>${e}</span>${v || 60}</div>`;
     return esPOR
-      ? `${stat('DIV', info.div)}${stat('HAN', info.han)}${stat('KIC', info.kic)}${stat('REF', info.ref)}${stat('SPD', info.spd)}${stat('POS', info.pos)}`
-      : `${stat('PAC', info.pac)}${stat('SHO', info.tiro)}${stat('PAS', info.pase)}${stat('DRI', info.regate)}${stat('DEF', info.defensa)}${stat('PHY', info.phy)}`;
+      ? `${stat('EST', info.div)}${stat('PAR', info.han)}${stat('SAQ', info.kic)}${stat('REF', info.ref)}${stat('VEL', info.spd)}${stat('POS', info.pos)}`
+      : `${stat('RIT', info.pac)}${stat('TIR', info.tiro)}${stat('PAS', info.pase)}${stat('REG', info.regate)}${stat('DEF', info.defensa)}${stat('FIS', info.phy)}`;
   }
 
   window.abrirMensaje = function (id) {
@@ -408,12 +393,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!msg.leido) {
       msg.leido = true;
       try {
-        const saved = localStorage.getItem('blue_lock_save');
+        const saved = BL.core.leerGuardado();
         if (saved) {
           const data = JSON.parse(saved);
           if (data.manager) {
             data.manager.buzon = buzon;
-            localStorage.setItem('blue_lock_save', JSON.stringify(data));
+            BL.core.guardarPartida(JSON.stringify(data));
             sincronizarSlotActivo();
           }
         }
@@ -440,7 +425,21 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
             </div>`
           : '';
-        ofertasHtml = `${jugCard}<div class="buzon-ofertas">` + msg.ofertas.map((o, i) => `
+        if (msg.contrato) {
+          ofertasHtml = `<div class="buzon-ofertas">` + msg.ofertas.map(o => `
+            <div class="buzon-oferta">
+              <div class="buzon-oferta-club">
+                <span class="buzon-oferta-logo">${htmlEscudoEquipo(o.club)}</span>
+                <span class="buzon-oferta-nombre">${o.club}</span>
+              </div>
+              <div class="buzon-oferta-liga">${o.liga}</div>
+              <div class="buzon-oferta-precio">${formatearYenes(o.sueldo)}</div>
+              <div class="buzon-oferta-acciones">
+                <button class="buzon-oferta-btn aceptar" onclick="firmarContrato('${msg.id}','${o.id}')"><i class="fas fa-pen-nib"></i> FIRMAR</button>
+              </div>
+            </div>`).join('') + `</div>`;
+        } else {
+          ofertasHtml = `${jugCard}<div class="buzon-ofertas">` + msg.ofertas.map((o, i) => `
           <div class="buzon-oferta">
             <div class="buzon-oferta-club">
               <span class="buzon-oferta-logo">${htmlEscudoEquipo(o.club)}</span>
@@ -465,12 +464,13 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
             </div>
           </div>`).join('') + `</div>`;
+        }
       }
       detalle.innerHTML = `
         <div class="buzon-detalle-card">
           <div class="buzon-detalle-remitente">DE: ${msg.remitente}</div>
           <div class="buzon-detalle-asunto">${msg.asunto}</div>
-          <div class="buzon-detalle-meta">Jornada ${msg.jornada} · ${msg.tipo === 'medico' ? '🚨 Alerta' : msg.tipo === 'oferta' ? '💰 Oferta de traspaso' : '📋 Información'}</div>
+          <div class="buzon-detalle-meta">Jornada ${msg.jornada} · ${msg.tipo === 'medico' ? '🚨 Alerta' : msg.contrato ? '📝 Oferta de contrato' : msg.tipo === 'oferta' ? '💰 Oferta de traspaso' : '📋 Información'}</div>
           <div class="buzon-detalle-cuerpo">${msg.cuerpo}</div>
           ${ofertasHtml}
         </div>`;
@@ -506,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function refrescarBuzonTrasOferta(msgId) {
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (saved) {
         const data = JSON.parse(saved);
         if (data.manager) {
@@ -518,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
           }
           data.manager.buzon = buzon;
-          localStorage.setItem('blue_lock_save', JSON.stringify(data));
+          BL.core.guardarPartida(JSON.stringify(data));
         }
       }
     } catch (e) { /* noop */ }
@@ -537,8 +537,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function ligaDeClubId(clubId) {
+    if (typeof CONFIG_PAISES === 'undefined') return '—';
+    for (const pais of CONFIG_PAISES) {
+      for (const liga of pais.ligas) {
+        if (liga.equipos.some(e => e.id === clubId)) return liga.nombre;
+      }
+    }
+    return '—';
+  }
+
+  function generarMensajeOfertasContrato(manager) {
+    const clubes = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.slice() : [];
+    for (let i = clubes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [clubes[i], clubes[j]] = [clubes[j], clubes[i]];
+    }
+    const seleccion = clubes.slice(0, 3);
+    const ofertas = seleccion.map((eq, idx) => ({
+      id: 'ct_' + idx + '_' + Math.floor(Math.random() * 99999),
+      clubId: eq.id,
+      club: eq.name,
+      liga: ligaDeClubId(eq.id),
+      sueldo: typeof eq.budget === 'number' ? eq.budget : 0
+    }));
+    return [{
+      id: 'm_contrato_' + Date.now(),
+      remitente: 'Agente de Fútbol',
+      asunto: 'OFERTAS DE CONTRATO — ¡Elige tu primer club!',
+      cuerpo: `Como agente libre, ${manager?.egoista?.nombre || 'tu Egoísta'} ha recibido 3 ofertas para debutar. Elige con qué club firmar.`,
+      leido: false,
+      jornada: 0,
+      tipo: 'oferta',
+      contrato: true,
+      ofertas
+    }];
+  }
+
+  window.firmarContrato = function (msgId, ofertaId) {
+    let saved = BL.core.leerGuardado();
+    if (!saved) return;
+    let data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) return;
+    const buzon = getBuzon(data);
+    const msg = (buzon.mensajes || []).find(m => m.id === msgId);
+    const oferta = msg && Array.isArray(msg.ofertas) ? msg.ofertas.find(o => o.id === ofertaId) : null;
+    if (!oferta) return;
+
+    data.manager.equipo = oferta.club;
+    data.manager.presupuesto = oferta.sueldo || 0;
+    if (data.manager.egoista) data.manager.egoista.equipo = oferta.club;
+    const fich = (data.manager.fichajes || []).find(f => f.id === 'egoista');
+    if (fich) { fich.equipo = oferta.club; fich.agenteLibre = false; }
+    buzon.mensajes = buzon.mensajes.filter(m => m.id !== msgId);
+    data.manager.buzon = buzon;
+    BL.core.guardarPartida(JSON.stringify(data));
+    mostrarModal('¡CONTRATO FIRMADO!', `¡${data.manager.egoista?.nombre || 'Tu Egoísta'} ha firmado con ${oferta.club}!`);
+    renderHub();
+    showScreen('screen-hub');
+  };
+
   window.aceptarOferta = function (msgId, ofertaId) {
-    let saved = localStorage.getItem('blue_lock_save');
+    let saved = BL.core.leerGuardado();
     if (!saved) return;
     let data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -566,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
     data.manager.buzon = buzon;
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
 
     const clubNombre = oferta.club || 'el club';
     const nombreJug = getJugador(jugadorId, data.manager.equipo)?.nombre || oferta.jugador || 'el jugador';
@@ -576,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.rechazarOferta = function (msgId, ofertaId) {
-    let saved = localStorage.getItem('blue_lock_save');
+    let saved = BL.core.leerGuardado();
     if (!saved) return;
     let data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -586,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const oferta = Array.isArray(msg.ofertas) ? msg.ofertas.find(o => o.id === ofertaId) : null;
     const nombre = oferta?.club || 'El club';
     cerrarOfertaEnMensaje(data, msgId, ofertaId);
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
     mostrarModal('OFERTA RECHAZADA', `Has rechazado la oferta de ${nombre}.`);
     refrescarBuzonTrasOferta(msgId);
   };
@@ -598,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.enviarContraoferta = function (msgId, ofertaId, pct) {
-    let saved = localStorage.getItem('blue_lock_save');
+    let saved = BL.core.leerGuardado();
     if (!saved) return;
     let data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -625,7 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `${club?.name || 'El club'} se cansa de negociar y retira su oferta.`
         : `${club?.name || 'El club'} no puede pagar tu contraoferta de ${formatearYenes(pedido)} y la retira.`;
       cerrarOfertaEnMensaje(data, msgId, ofertaId);
-      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      BL.core.guardarPartida(JSON.stringify(data));
       mostrarModal('CONTRAOFERTA RECHAZADA', motivo);
       refrescarBuzonTrasOferta(msgId);
       return;
@@ -643,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
       oferta.precio = pedido;
       oferta.rondas = (oferta.rondas || 0) + 1;
       data.manager.buzon = buzon;
-      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      BL.core.guardarPartida(JSON.stringify(data));
 
       mostrarModal('EL CLUB ACEPTA TU PRECIO', `${club?.name || 'El club'} acepta tu contraoferta de ${formatearYenes(pedido)} por ${jug?.nombre || 'el jugador'}. Pulsa ACEPTAR para completar el traspaso.`);
       refrescarBuzonTrasOferta(msgId);
@@ -658,7 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
       oferta.precio = nuevo;
       oferta.rondas = (oferta.rondas || 0) + 1;
       data.manager.buzon = buzon;
-      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      BL.core.guardarPartida(JSON.stringify(data));
 
       mostrarModal('EL CLUB SUBE SU OFERTA', `${club?.name || 'El club'} no acepta tu contraoferta de ${formatearYenes(pedido)}, pero sube su oferta a ${formatearYenes(nuevo)} por ${jug?.nombre || 'el jugador'}. Puedes aceptar, rechazar o contraofertar de nuevo.`);
       refrescarBuzonTrasOferta(msgId);
@@ -667,7 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Rechazo por decisión aleatoria
     cerrarOfertaEnMensaje(data, msgId, ofertaId);
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
     mostrarModal('CONTRAOFERTA RECHAZADA', `${club?.name || 'El club'} rechaza tu contraoferta de ${formatearYenes(pedido)} y retira la oferta.`);
     refrescarBuzonTrasOferta(msgId);
   };
@@ -753,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cont = document.getElementById('buzon-lista');
     if (!cont) return;
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (saved) {
         const data = JSON.parse(saved);
         if (data.manager) getBuzon(data);
@@ -790,7 +850,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Cargar Guardado Previsto
   function cargarEstado() {
-    const saved = localStorage.getItem('blue_lock_save') || localStorage.getItem('bl_manager_save');
+    const saved = BL.core.leerGuardado() || BL.core.leerLegacy();
 
     // Ocultar los continuar por defecto (el de manager siempre visible: abre el selector de slots)
     ['btn-continuar-jugador', 'btn-continuar-historia'].forEach(id => {
@@ -821,13 +881,13 @@ document.addEventListener('DOMContentLoaded', () => {
             Object.keys(PLANTILLAS_EQUIPO).forEach(teamId => {
               data.manager.equipos[teamId] = (PLANTILLAS_EQUIPO[teamId] || []).map(j => ({ ...j }));
             });
-            localStorage.setItem('blue_lock_save', JSON.stringify(data));
+            BL.core.guardarPartida(data);
           }
 
           // Re-sincronizar los agentes libres con la base de datos actual
           if (typeof AGENTES_LIBRES !== 'undefined') {
             data.manager.agentesLibres = AGENTES_LIBRES.map(j => ({ ...j }));
-            localStorage.setItem('blue_lock_save', JSON.stringify(data));
+            BL.core.guardarPartida(data);
           }
         }
 
@@ -863,20 +923,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ===== SLOTS DE GUARDADO (MODO CARRERA) =====
   const MAX_SLOTS = 3;
-  const SLOTS_KEY = 'bl_manager_slots';
-  const ACTIVE_SLOT_KEY = 'bl_manager_active';
 
   function getManagerSlots() {
-    try {
-      const raw = localStorage.getItem(SLOTS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-      return [];
-    }
+    return BL.core.cargarSlots();
   }
 
   function saveManagerSlots(slots) {
-    localStorage.setItem(SLOTS_KEY, JSON.stringify(slots));
+    BL.core.guardarSlots(slots);
   }
 
   function nuevoSlotId() {
@@ -885,11 +938,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function sincronizarSlotActivo() {
     try {
-      const activeId = localStorage.getItem(ACTIVE_SLOT_KEY);
+      const activeId = BL.core.slotActivo();
       if (!activeId) return;
-      const saved = localStorage.getItem('blue_lock_save');
-      if (!saved) return;
-      const data = JSON.parse(saved);
+      const data = BL.core.cargarPartida();
+      if (!data) return;
       if (data.tipo !== 'manager' || !data.manager) return;
       const slots = getManagerSlots();
       const idx = slots.findIndex(s => s.slotId === activeId);
@@ -905,18 +957,491 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Cargar Países en formulario Jugador
-  function cargarPaisesUI() {
-    const select = document.getElementById('select-pais');
-    if (!select || typeof CONFIG_PAISES === 'undefined') return;
+  function nacionalidadesOrdenadas() {
+    if (typeof BANDERAS_PAIS === 'undefined') return [];
+    return Object.keys(BANDERAS_PAIS).sort((a, b) => a.localeCompare(b, 'es'));
+  }
+
+  function cargarNacionalidadesUI() {
+    const select = document.getElementById('select-nacionalidad');
+    if (!select || typeof BANDERAS_PAIS === 'undefined') return;
     select.innerHTML = '';
-    CONFIG_PAISES.forEach(p => {
+    nacionalidadesOrdenadas().forEach(pais => {
       const opt = document.createElement('option');
-      opt.value = p.id;
-      const ligas = p.ligas.map(l => l.nombre).join(', ');
-      opt.textContent = `${p.bandera} ${p.nombre} (${ligas})`;
+      opt.value = pais;
+      opt.textContent = `${BANDERAS_PAIS[pais]} ${pais}`;
       select.appendChild(opt);
     });
   }
+
+  window.abrirSelectorNacionalidad = function () {
+    const lista = document.getElementById('nacionalidad-lista');
+    if (!lista || typeof BANDERAS_PAIS === 'undefined') return;
+    const actual = document.getElementById('select-nacionalidad')?.value || '';
+    lista.innerHTML = nacionalidadesOrdenadas().map(pais => `
+      <button class="nac-item ${pais === actual ? 'selected' : ''}" data-pais="${pais}" onclick="elegirNacionalidad('${pais}')">
+        <span class="nac-flag">${BANDERAS_PAIS[pais]}</span>
+        <span class="nac-nombre">${pais}</span>
+        ${pais === actual ? '<i class="fas fa-check nac-check"></i>' : ''}
+      </button>`).join('');
+    const buscar = document.getElementById('buscar-nacionalidad-modal');
+    if (buscar) { buscar.value = ''; buscar.focus(); }
+    document.getElementById('nacionalidad-modal-overlay').classList.add('active');
+  };
+
+  window.filtrarNacionalidadesModal = function () {
+    const input = document.getElementById('buscar-nacionalidad-modal');
+    const lista = document.getElementById('nacionalidad-lista');
+    if (!input || !lista) return;
+    const q = input.value.trim().toLowerCase();
+    lista.querySelectorAll('.nac-item').forEach(item => {
+      const coincide = !q || (item.dataset.pais || '').toLowerCase().includes(q);
+      item.style.display = coincide ? '' : 'none';
+    });
+  };
+
+  window.elegirNacionalidad = function (pais) {
+    const select = document.getElementById('select-nacionalidad');
+    if (select) select.value = pais;
+    const btn = document.getElementById('btn-nacionalidad');
+    if (btn && typeof BANDERAS_PAIS !== 'undefined') {
+      btn.innerHTML = `${BANDERAS_PAIS[pais] || '<i class="fas fa-earth-americas"></i>'} ${pais}`;
+    }
+    cerrarSelectorNacionalidad();
+    renderizarFichaEgoista();
+  };
+
+  window.cerrarSelectorNacionalidad = function () {
+    document.getElementById('nacionalidad-modal-overlay').classList.remove('active');
+  }
+
+  const POSICIONES = [
+    { codigo: 'POR', label: 'Portero', x: 50, y: 88 },
+    { codigo: 'LI', label: 'Lateral Izquierdo', x: 15, y: 74 },
+    { codigo: 'DFC', label: 'Defensa Central', x: 50, y: 74 },
+    { codigo: 'LD', label: 'Lateral Derecho', x: 85, y: 74 },
+    { codigo: 'CAI', label: 'Carrilero Izquierdo', x: 10, y: 58 },
+    { codigo: 'MCD', label: 'Mediocentro Defensivo', x: 50, y: 58 },
+    { codigo: 'CAD', label: 'Carrilero Derecho', x: 90, y: 58 },
+    { codigo: 'MI', label: 'Medio Izquierdo', x: 20, y: 44 },
+    { codigo: 'MC', label: 'Mediocentro', x: 50, y: 44 },
+    { codigo: 'MD', label: 'Medio Derecho', x: 80, y: 44 },
+    { codigo: 'MCO', label: 'Mediocentro Ofensivo', x: 50, y: 32 },
+    { codigo: 'EI', label: 'Extremo Izquierdo', x: 20, y: 20 },
+    { codigo: 'DC', label: 'Delantero Centro', x: 50, y: 20 },
+    { codigo: 'ED', label: 'Extremo Derecho', x: 80, y: 20 }
+  ];
+
+  window.abrirSelectorPosicion = function () {
+    const pitch = document.getElementById('posicion-pitch');
+    if (!pitch) return;
+    const actual = document.getElementById('select-posicion')?.value || '';
+    pitch.innerHTML = POSICIONES.map(p => `
+      <button class="pos-slot ${p.codigo === actual ? 'selected' : ''} ${posColor(p.codigo) || ''}" style="top:${p.y}%;left:${p.x}%;" onclick="elegirPosicion('${p.codigo}')">
+        ${p.codigo}
+      </button>`).join('');
+    document.getElementById('posicion-modal-overlay').classList.add('active');
+  };
+
+  window.elegirPosicion = function (codigo) {
+    const select = document.getElementById('select-posicion');
+    if (select) select.value = codigo;
+    const btn = document.getElementById('btn-posicion');
+    const p = POSICIONES.find(x => x.codigo === codigo);
+    if (btn && p) {
+      btn.classList.remove('pos-purple', 'pos-red', 'pos-orange', 'pos-green');
+      if (posColor(codigo)) btn.classList.add(posColor(codigo));
+      btn.innerHTML = `<i class="fas fa-futbol"></i> ${p.label} (${p.codigo})`;
+    }
+    cerrarSelectorPosicion();
+    renderizarFichaEgoista();
+  };
+
+  window.cerrarSelectorPosicion = function () {
+    document.getElementById('posicion-modal-overlay').classList.remove('active');
+  }
+
+  window.generarListaAlturas = function () {
+    const panel = document.getElementById('mercado-altura-panel');
+    if (!panel) return;
+    const actual = parseInt(document.getElementById('input-altura')?.value, 10) || 0;
+    panel.innerHTML = '';
+    for (let cm = 160; cm <= 195; cm++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mercado-opt' + (cm === actual ? ' active' : '');
+      btn.dataset.altura = String(cm);
+      btn.textContent = cm + ' cm';
+      btn.onclick = function () { elegirAltura(cm); };
+      panel.appendChild(btn);
+    }
+  };
+
+  window.elegirAltura = function (cm) {
+    const label = document.getElementById('altura-label');
+    if (label) label.textContent = cm + ' cm';
+    const input = document.getElementById('input-altura');
+    if (input) input.value = cm;
+    const panel = document.getElementById('mercado-altura-panel');
+    if (panel) {
+      panel.querySelectorAll('.mercado-opt').forEach(o => {
+        o.classList.toggle('active', o.dataset.altura === String(cm));
+      });
+      panel.classList.remove('open');
+    }
+    renderizarFichaEgoista();
+  };
+
+  window.elegirPie = function (valor) {
+    const label = document.getElementById('pie-label');
+    if (label) label.textContent = valor;
+    const select = document.getElementById('select-pie');
+    if (select) select.value = valor;
+    const panel = document.getElementById('mercado-pie-panel');
+    if (panel) {
+      panel.querySelectorAll('.mercado-opt').forEach(o => {
+        o.classList.toggle('active', o.dataset.val === valor);
+      });
+      panel.classList.remove('open');
+    }
+    renderizarFichaEgoista();
+  };
+
+  const EGOISTA_STATS_BASE = {
+    POR: { est: 50, man: 48, saq: 45, ref: 58, vel: 44, col: 50 },
+    DFC: { tiro: 30, pase: 45, regate: 40, vision: 45, def: 58, fis: 52 },
+    LI: { tiro: 35, pase: 48, regate: 50, vision: 45, def: 56, fis: 50 },
+    LD: { tiro: 35, pase: 48, regate: 50, vision: 45, def: 56, fis: 50 },
+    CAI: { tiro: 38, pase: 52, regate: 50, vision: 46, def: 48, fis: 56 },
+    CAD: { tiro: 38, pase: 52, regate: 50, vision: 46, def: 48, fis: 56 },
+    MCD: { tiro: 35, pase: 52, regate: 45, vision: 50, def: 56, fis: 50 },
+    MC: { tiro: 44, pase: 58, regate: 52, vision: 52, def: 45, fis: 48 },
+    MCO: { tiro: 50, pase: 52, regate: 52, vision: 58, def: 30, fis: 44 },
+    MI: { tiro: 46, pase: 50, regate: 56, vision: 48, def: 40, fis: 48 },
+    MD: { tiro: 46, pase: 50, regate: 56, vision: 48, def: 40, fis: 48 },
+    EI: { tiro: 50, pase: 48, regate: 58, vision: 48, def: 28, fis: 46 },
+    ED: { tiro: 50, pase: 48, regate: 58, vision: 48, def: 28, fis: 46 },
+    DC: { tiro: 58, pase: 42, regate: 50, vision: 45, def: 25, fis: 52 }
+  };
+
+  const VALOR_POSICION = {
+    DC: 2800000, MCO: 2800000, EI: 2800000, ED: 2800000,
+    MC: 2300000, MI: 2300000, MD: 2300000, CAI: 2300000, CAD: 2300000,
+    DFC: 1800000, MCD: 1800000, LI: 1800000, LD: 1800000,
+    POR: 1500000
+  };
+
+  function formatearYenesCompleto(n) {
+    if (typeof n !== 'number') return '—';
+    return '¥ ' + n.toLocaleString('en-US');
+  }
+
+  function grlEgoistaBase(atributos, esPOR) {
+    if (esPOR) return Math.round((atributos.est + atributos.man + atributos.saq + atributos.ref + atributos.vel + atributos.col) / 6);
+    return Math.round((atributos.tiro + atributos.pase + atributos.regate + atributos.vision + atributos.def + atributos.fis) / 6);
+  }
+
+  function bonusAltura(altura) {
+    const h = parseInt(altura, 10);
+    if (isNaN(h)) return 0;
+    if (h >= 190) return 3;
+    if (h >= 175) return 2;
+    return 0;
+  }
+
+  function aplicarBonusAltura(atributos, posicion, altura) {
+    const bonus = bonusAltura(altura);
+    if (!bonus) return atributos;
+    const base = (typeof EGOISTA_STATS_BASE !== 'undefined') ? (EGOISTA_STATS_BASE[posicion] || {}) : {};
+    const especial = Object.keys(base).find(k => base[k] >= 55);
+    const res = {};
+    Object.keys(atributos).forEach(k => {
+      let v = atributos[k] + bonus;
+      if (k !== especial && v >= 55) v = 54;
+      res[k] = v;
+    });
+    return res;
+  }
+
+  // ===== HEXÁGONO DE ATRIBUTOS (RADAR BLUE LOCK) =====
+  const RANGOS_HEX = [
+    { min: 90, letra: 'S', color: '#FFD700' },
+    { min: 80, letra: 'A', color: '#FF4500' },
+    { min: 70, letra: 'B', color: '#00FFFF' },
+    { min: 55, letra: 'C', color: '#00FF00' },
+    { min: 0, letra: 'D', color: '#A9A9A9' }
+  ];
+
+  function rangoHex(valor) {
+    const v = Number(valor) || 0;
+    for (let i = 0; i < RANGOS_HEX.length; i++) if (v >= RANGOS_HEX[i].min) return RANGOS_HEX[i];
+    return RANGOS_HEX[RANGOS_HEX.length - 1];
+  }
+
+  const VERTICES_CAMPO = [
+    { nombre: 'Ritmo', key: 'pac' },
+    { nombre: 'Tiro', key: 'sho' },
+    { nombre: 'Pase', key: 'pas' },
+    { nombre: 'Regate', key: 'dri' },
+    { nombre: 'Defensa', key: 'def' },
+    { nombre: 'Físico', key: 'phy' }
+  ];
+  const VERTICES_POR = [
+    { nombre: 'Velocidad', key: 'spd' },
+    { nombre: 'Colocación', key: 'pos' },
+    { nombre: 'Saque', key: 'kic' },
+    { nombre: 'Manejo', key: 'han' },
+    { nombre: 'Estirada', key: 'div' },
+    { nombre: 'Reflejos', key: 'ref' }
+  ];
+
+  window.actualizarHexagono = function (stats, esPOR, canvasId) {
+    const canvas = document.getElementById(canvasId || 'canvas-hexagono');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = 520;
+    const H = 560;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const cy = H / 2 - 8;
+    const R = 176;
+    const verts = esPOR ? VERTICES_POR : VERTICES_CAMPO;
+    const valores = verts.map(v => Number((stats || {})[v.key]) || 0);
+    const hasData = valores.some(x => x > 0);
+
+    const punto = (i, radio) => {
+      const a = -Math.PI / 2 + (i * Math.PI * 2) / 6;
+      return { x: cx + radio * Math.cos(a), y: cy + radio * Math.sin(a) };
+    };
+
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const p = punto(i, R);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(4, 10, 22, 0.6)';
+    ctx.fill();
+    ctx.strokeStyle = '#00f3ff';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#00f3ff';
+    ctx.shadowBlur = 18;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    [0.5, 0.8].forEach(f => {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const p = punto(i, R * f);
+        i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    ctx.strokeStyle = 'rgba(0, 243, 255, 0.22)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const p = punto(i, R);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+
+    if (hasData) {
+      const radioVal = v => R * Math.max(0.08, Math.min(1, v / 100));
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const p = punto(i, radioVal(valores[i]));
+        i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0, 180, 255, 0.35)';
+      ctx.fill();
+      ctx.strokeStyle = '#00f3ff';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#00f3ff';
+      ctx.shadowBlur = 14;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI * 2) / 6;
+      const dirX = Math.cos(a);
+      const dirY = Math.sin(a);
+      const valor = valores[i];
+      const rango = hasData ? rangoHex(valor) : { letra: '—', color: '#3a4657' };
+      const nx = cx + dirX * (R + 22);
+      const ny = cy + dirY * (R + 22);
+      ctx.font = '600 15px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(verts[i].nombre, nx, ny);
+      ctx.font = '900 26px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = hasData ? rango.color : '#3a4657';
+      ctx.shadowColor = rango.color;
+      ctx.shadowBlur = hasData ? 10 : 0;
+      ctx.fillText(rango.letra, nx, ny - 22);
+      ctx.shadowBlur = 0;
+    }
+
+    if (!hasData) {
+      ctx.font = '700 14px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = 'rgba(160, 180, 200, 0.7)';
+      ctx.fillText('ELIGE POSICIÓN', cx, cy);
+    }
+  };
+
+  window.renderizarFichaEgoista = function () {
+    const nombre = document.getElementById('input-nombre-jugador')?.value.trim() || 'TU NOMBRE';
+    const posicion = document.getElementById('select-posicion')?.value || '';
+    const nacionalidad = document.getElementById('select-nacionalidad')?.value || '';
+    const bandera = (typeof BANDERAS_PAIS !== 'undefined' ? BANDERAS_PAIS[nacionalidad] : '') || '🌍';
+    const instituto = document.getElementById('input-instituto')?.value.trim() || '—';
+    const edad = document.getElementById('input-edad')?.value || '—';
+    const altura = document.getElementById('input-altura')?.value ? document.getElementById('input-altura').value + 'cm' : '—';
+    const pie = document.getElementById('select-pie')?.value || '—';
+
+    // No pisar filas que estén en edición
+    const el = (id, txt) => { const e = document.getElementById(id); if (e && !e.querySelector('input, select')) e.textContent = txt; };
+    el('ficha-nombre-pantalla', nombre.toUpperCase());
+    el('ficha-nacionalidad-pantalla', nacionalidad ? `${bandera} ${nacionalidad}` : '🌍 —');
+    el('ficha-instituto-pantalla', instituto);
+    el('ficha-posicion-pantalla', posicion || '—');
+    el('ficha-edad-pantalla', String(edad));
+    el('altura-label', altura);
+    el('pie-label', pie);
+    el('ficha-valor-pantalla', posicion ? formatearYenesCompleto(VALOR_POSICION[posicion] || 0) : '—');
+
+    const cont = document.getElementById('contenedor-atributos-ficha');
+    if (!cont) return;
+    if (!posicion) {
+      el('ficha-grl-valor', '—');
+      cont.innerHTML = '<p style="font-size:0.7rem;color:var(--text-muted);padding:8px;text-align:center;">Elige una posición para calcular tus atributos</p>';
+      window.actualizarHexagono({}, false);
+      return;
+    }
+
+    const stats = (typeof EGOISTA_STATS_BASE !== 'undefined') ? (EGOISTA_STATS_BASE[posicion] || {}) : {};
+    const esPOR = posicion === 'POR';
+    const atributos = esPOR
+      ? { est: stats.est || 50, man: stats.man || 48, saq: stats.saq || 45, ref: stats.ref || 58, vel: stats.vel || 44, col: stats.col || 50 }
+      : { tiro: stats.tiro || 30, pase: stats.pase || 45, regate: stats.regate || 40, vision: stats.vision || 45, def: stats.def || 58, fis: stats.fis || 52 };
+    const atributosFin = aplicarBonusAltura(atributos, posicion, document.getElementById('input-altura')?.value || 0);
+
+    const grl = grlEgoistaBase(atributosFin, esPOR);
+    el('ficha-grl-valor', String(grl));
+
+    const cuadro = (et, val) => `<div class="pfila-stat ficha-stat-box"><span>${et}</span>${val}</div>`;
+    cont.innerHTML = esPOR
+      ? `${cuadro('EST', atributosFin.est)}${cuadro('PAR', atributosFin.man)}${cuadro('SAQ', atributosFin.saq)}${cuadro('REF', atributosFin.ref)}${cuadro('VEL', atributosFin.vel)}${cuadro('POS', atributosFin.col)}`
+      : `${cuadro('RIT', posicion === 'DC' ? 54 : 55)}${cuadro('TIR', atributosFin.tiro)}${cuadro('PAS', atributosFin.pase)}${cuadro('REG', atributosFin.regate)}${cuadro('DEF', atributosFin.def)}${cuadro('FIS', atributosFin.fis)}`;
+
+    const hexStats = esPOR
+      ? { spd: atributosFin.vel, pos: atributosFin.col, kic: atributosFin.saq, han: atributosFin.man, div: atributosFin.est, ref: atributosFin.ref }
+      : { pac: 54, sho: atributosFin.tiro, pas: atributosFin.pase, dri: atributosFin.regate, def: atributosFin.def, phy: atributosFin.fis };
+    window.actualizarHexagono(hexStats, esPOR);
+
+    return { nombre, posicion, nacionalidad, bandera, instituto, edad, altura, pie, esPOR, atributos: atributosFin, grl };
+  }
+
+  function commitFilaTexto(valueId, inputId) {
+    const valueEl = document.getElementById(valueId);
+    const input = document.getElementById(inputId);
+    if (!valueEl || !input) return;
+    const inp = valueEl.querySelector('input');
+    input.value = inp ? inp.value : '';
+    renderizarFichaEgoista();
+  }
+
+  function commitFilaNumero(valueId, inputId, min, max) {
+    const valueEl = document.getElementById(valueId);
+    const input = document.getElementById(inputId);
+    if (!valueEl || !input) return;
+    const inp = valueEl.querySelector('input');
+    let v = inp ? parseInt(inp.value, 10) : NaN;
+    if (isNaN(v)) v = parseInt(input.value, 10) || min;
+    v = Math.max(min, Math.min(max, v));
+    input.value = v;
+    renderizarFichaEgoista();
+  }
+
+  function commitFilaSelect(valueId, inputId) {
+    const valueEl = document.getElementById(valueId);
+    const input = document.getElementById(inputId);
+    if (!valueEl || !input) return;
+    const sel = valueEl.querySelector('select');
+    if (sel) input.value = sel.value;
+    renderizarFichaEgoista();
+  }
+
+  window.editarFilaTexto = function (valueId, inputId, maxlen) {
+    const valueEl = document.getElementById(valueId);
+    const input = document.getElementById(inputId);
+    if (!valueEl || !input || valueEl.querySelector('input, select')) return;
+    valueEl.innerHTML = `<input type="text" class="ficha-inline-input" maxlength="${maxlen}" value="${String(input.value || '').replace(/"/g, '&quot;')}">`;
+    const inp = valueEl.querySelector('input');
+    inp.focus(); inp.select();
+    inp.addEventListener('blur', function () { commitFilaTexto(valueId, inputId); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); commitFilaTexto(valueId, inputId); } });
+  };
+
+  window.editarFilaNumero = function (valueId, inputId, min, max) {
+    const valueEl = document.getElementById(valueId);
+    const input = document.getElementById(inputId);
+    if (!valueEl || !input || valueEl.querySelector('input, select')) return;
+    valueEl.innerHTML = `<input type="number" class="ficha-inline-input" min="${min}" max="${max}" value="${input.value || ''}">`;
+    const inp = valueEl.querySelector('input');
+    inp.focus(); inp.select();
+    inp.addEventListener('blur', function () { commitFilaNumero(valueId, inputId, min, max); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); commitFilaNumero(valueId, inputId, min, max); } });
+  };
+
+  window.editarFilaSelect = function (valueId, inputId, opciones) {
+    const valueEl = document.getElementById(valueId);
+    const input = document.getElementById(inputId);
+    if (!valueEl || !input || valueEl.querySelector('input, select')) return;
+    const actual = input.value || '';
+    const opts = (opciones || []).map(o => {
+      const label = o === '' ? '—' : o;
+      return `<option value="${o}" ${o === actual ? 'selected' : ''}>${label}</option>`;
+    }).join('');
+    valueEl.innerHTML = `<select class="ficha-inline-select">${opts}</select>`;
+    const sel = valueEl.querySelector('select');
+    sel.focus();
+    sel.addEventListener('change', function () { commitFilaSelect(valueId, inputId); });
+    sel.addEventListener('blur', function () { commitFilaSelect(valueId, inputId); });
+  };
+
+  let egoistaAvatarUrl = '';
+
+  (function initAvatarEgoista() {
+    const contAvatar = document.getElementById('contenedor-avatar-crear');
+    if (!contAvatar) return;
+    contAvatar.addEventListener('click', function () {
+      const url = prompt('Introduce la URL de tu avatar (imagen de internet):');
+      if (!url || !/^https?:\/\/.+/i.test(url.trim())) return;
+      egoistaAvatarUrl = url.trim();
+      const img = document.getElementById('ficha-avatar');
+      if (img) {
+        img.style.display = '';
+        contAvatar.classList.remove('sin-avatar');
+        img.src = url;
+      }
+    });
+  })();
 
   let tsState = { equipoId: null, equipoNombre: '' };
   let previewPlantillaData = null;
@@ -1065,7 +1590,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (screenId === 'screen-hub') {
       detenerMusicaPantalla();
       try {
-        const saved = localStorage.getItem('blue_lock_save');
+        const saved = BL.core.leerGuardado();
         if (saved) {
           const data = JSON.parse(saved);
           if (data.manager) getBuzon(data);
@@ -1074,12 +1599,18 @@ document.addEventListener('DOMContentLoaded', () => {
       actualizarBuzonBadge();
       rendimientoCache = null;
     }
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s => {
+      s.classList.remove('active');
+      s.classList.add('pantalla-oculta');
+    });
     const target = document.getElementById(screenId);
-    if (target) target.classList.add('active');
+    if (target) {
+      target.classList.remove('pantalla-oculta');
+      target.classList.add('active');
+    }
     if (screenId === 'screen-partido' && partidoEstado === 'pausa' && partidoCtx) {
       try {
-        const s = localStorage.getItem('blue_lock_save');
+        const s = BL.core.leerGuardado();
         if (s) {
           const fresh = JSON.parse(s);
           if (fresh?.manager?.tactica) partidoCtx.data.manager.tactica = fresh.manager.tactica;
@@ -1089,64 +1620,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  window.showScreen = function (screenId) {
+  // Navegación segura: oculta las demás pantallas con .pantalla-oculta,
+  // muestra la activa y ejecuta su loader de datos (si está registrado).
+  window.mostrarPantalla = function (nombre) {
+    const id = String(nombre || '').startsWith('screen-') ? nombre : 'screen-' + nombre;
     const current = document.querySelector('.screen.active');
-    if (current && current.id !== screenId) {
+    if (current && current.id !== id) {
       navHistory.push(current.id);
     }
-    activarPantalla(screenId);
+    activarPantalla(id);
+    const loader = BL.cargadores[nombre] || BL.cargadores[id];
+    if (loader) {
+      try { loader(); } catch (e) { console.error('Loader de pantalla', id, e); }
+    }
+  };
+
+  window.showScreen = function (screenId) {
+    mostrarPantalla(screenId);
   };
 
   window.goBack = function () {
     const prev = navHistory.pop();
     activarPantalla(prev && document.getElementById(prev) ? prev : 'screen-main');
-  };
-
-  // Renderizar Tienda
-  function renderTienda() {
-    const grid = document.getElementById('shop-grid');
-    if (!grid || typeof BLUE_LOCK_DATABASE === 'undefined') return;
-    grid.innerHTML = '';
-    BLUE_LOCK_DATABASE.tiendaItems.forEach(item => {
-      grid.innerHTML += `
-        <div class="shop-item">
-          <h4>${item.nombre}</h4>
-          <p>${item.desc}</p>
-          <div class="price-tag">🪙 ${item.precio}</div>
-          <button class="btn-bluelock" style="padding:6px; font-size:0.8rem;" onclick="comprarItem('${item.id}', ${item.precio})">Comprar</button>
-        </div>
-      `;
-    });
-  }
-
-  // Renderizar Logros
-  function renderLogros() {
-    const grid = document.getElementById('achievements-grid');
-    if (!grid || typeof BLUE_LOCK_DATABASE === 'undefined') return;
-    grid.innerHTML = '';
-    BLUE_LOCK_DATABASE.logros.forEach(logro => {
-      grid.innerHTML += `
-        <div class="achievement-card">
-          <h4>${logro.nombre}</h4>
-          <p>${logro.desc}</p>
-          <div class="price-tag"> Recompensa: 💎 ${logro.recompensa}</div>
-          <span style="font-size:0.75rem; color:${logro.completado ? '#00f3ff' : '#888'}">
-            ${logro.completado ? '<i class="fas fa-check-circle"></i> COMPLETADO' : '<i class="fas fa-lock"></i> BLOQUEADO'}
-          </span>
-        </div>
-      `;
-    });
-  }
-
-  // Comprar en Tienda
-  window.comprarItem = function (itemId, precio) {
-    if (gameState.monedas >= precio) {
-      gameState.monedas -= precio;
-      actualizarMonedasUI();
-      mostrarModal("¡COMPRA REALIZADA!", "Has adquirido el objeto con éxito. Listo para la batalla.");
-    } else {
-      mostrarModal("MONEDAS INSUFICIENTES", "Necesitas ganar más partidos para obtener monedas de Ego.");
-    }
   };
 
   // Modal Generic Helper
@@ -1174,6 +1669,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.mostrarFormJugador = function () {
     document.getElementById('cj-menu').style.display = 'none';
     document.getElementById('cj-form').style.display = 'flex';
+    generarListaAlturas();
+    renderizarFichaEgoista();
   };
 
   window.volverMenuJugador = function () {
@@ -1216,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const activeId = localStorage.getItem(ACTIVE_SLOT_KEY);
+    const activeId = BL.core.slotActivo();
     let html = '';
     slots.forEach((slot, i) => {
       const fecha = slot.fechaGuardado ? new Date(slot.fechaGuardado) : (slot.fechaCreacion ? new Date(slot.fechaCreacion) : null);
@@ -1248,8 +1745,8 @@ document.addEventListener('DOMContentLoaded', () => {
       mostrarModal('ERROR', 'No se pudo cargar la partida.');
       return;
     }
-    localStorage.setItem('blue_lock_save', JSON.stringify(slot.data));
-    localStorage.setItem(ACTIVE_SLOT_KEY, slotId);
+    BL.core.guardarPartida(slot.data);
+    BL.core.guardarSlotActivo(slotId);
     cerrarModal();
     cargarEstado();
     renderHub();
@@ -1258,18 +1755,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.eliminarSlot = function (slotId) {
     let slots = getManagerSlots();
-    const eraActivo = localStorage.getItem(ACTIVE_SLOT_KEY) === slotId;
+    const eraActivo = BL.core.slotActivo() === slotId;
     slots = slots.filter(s => s.slotId !== slotId);
     saveManagerSlots(slots);
     if (eraActivo) {
-      localStorage.removeItem(ACTIVE_SLOT_KEY);
-      const current = localStorage.getItem('blue_lock_save');
-      if (current) {
-        try {
-          const d = JSON.parse(current);
-          if (d.tipo === 'manager') localStorage.removeItem('blue_lock_save');
-        } catch (e) { /* noop */ }
-      }
+      BL.core.borrarSlotActivo();
+      const data = BL.core.cargarPartida();
+      if (data && data.tipo === 'manager') BL.core.borrarPartida();
     }
     mostrarSlotsManager();
   };
@@ -1347,7 +1839,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       volIcon.className = 'fas fa-volume-high';
     }
-    localStorage.setItem('bl_volume_general', value);
+    BL.core.guardarAjuste('bl_volume_general', value);
   }
 
   window.cambiarVolumenGeneral = function (valor) {
@@ -1388,77 +1880,6 @@ document.addEventListener('DOMContentLoaded', () => {
       item.classList.toggle('activo', item.dataset.sfx === nombreSonido);
     });
   }
-
-  window.cambiarSfxActivados = function (activado) {
-    estadoAudio.sfxActivados = !!activado;
-    localStorage.setItem('bl_sfx_activados', activado ? 'true' : 'false');
-    if (!estadoAudio.sfxActivados && estadoAudio.sfxReproduciendose) {
-      detenerSFX(estadoAudio.sfxReproduciendose);
-    }
-    renderListaSFX();
-  };
-
-  window.toggleSfxIndividual = function (nombreSonido, activado) {
-    estadoAudio.sfxIndividuales[nombreSonido] = !!activado;
-    localStorage.setItem('bl_sfx_individuales', JSON.stringify(estadoAudio.sfxIndividuales));
-    if (!estadoAudio.sfxIndividuales[nombreSonido] && estadoAudio.sfxReproduciendose === nombreSonido) {
-      detenerSFX(nombreSonido);
-    }
-    const item = document.querySelector(`#contenedor-sfx .sfx-item[data-sfx="${nombreSonido}"]`);
-    if (!item) {
-      renderListaSFX();
-      return;
-    }
-    const wrap = item.querySelector('.sfx-toggle-wrap');
-    const input = item.querySelector('.sfx-toggle');
-    const play = item.querySelector('.sfx-btn.reproducir');
-    const stop = item.querySelector('.sfx-btn.parar');
-    const master = estadoAudio.sfxActivados;
-    const individual = estadoAudio.sfxIndividuales[nombreSonido] !== false;
-    if (wrap) wrap.classList.toggle('on', individual);
-    if (wrap) wrap.classList.toggle('off', !individual);
-    if (input) input.checked = individual;
-    if (play) play.disabled = !(master && individual);
-    if (stop) stop.disabled = !(master && individual);
-  };
-
-  window.renderListaSFX = function () {
-    const cont = document.getElementById('contenedor-sfx');
-    if (!cont) return;
-    const master = estadoAudio.sfxActivados;
-    const bloques = [
-      { titulo: 'Gestión y Oficina (Modo Carrera)', icono: 'fas fa-briefcase', claves: ['inspiration', 'intellect', 'push_forward', 'bedroom'] },
-      { titulo: 'Momentos de Partido (Dinámica)', icono: 'fas fa-futbol', claves: ['partido', 'ego', 'emergency', 'last_chance', 'awakening'] },
-      { titulo: 'Estados del Marcador', icono: 'fas fa-chart-line', claves: ['puzzle', 'despair', 'tema'] },
-      { titulo: 'Efectos de Sonido Cortos (SFX)', icono: 'fas fa-volume-high', claves: ['silbato_arbitro', 'gol', 'arma_ego'] }
-    ];
-    const items = bloques.map(b => {
-      const filas = b.claves
-        .filter(key => estadoAudio.sonidosSFX[key])
-        .map((key) => {
-          const s = estadoAudio.sonidosSFX[key];
-          const individual = estadoAudio.sfxIndividuales[key] !== false;
-          return `
-        <div class="sfx-item" data-sfx="${key}">
-          <span class="sfx-nombre">${s.nombre}</span>
-          <div class="sfx-botones">
-            <label class="sfx-toggle-wrap ${individual ? 'on' : 'off'}">
-              <input type="checkbox" class="sfx-toggle" onchange="toggleSfxIndividual('${key}', this.checked)" ${individual ? 'checked' : ''} ${master ? '' : 'disabled'}>
-              <span class="sfx-toggle-slider"></span>
-            </label>
-            <button class="sfx-btn reproducir" onclick="reproducirSFX('${key}')" ${master && individual ? '' : 'disabled'}><i class="fas fa-play"></i></button>
-            <button class="sfx-btn parar" onclick="detenerSFX('${key}')" ${master && individual ? '' : 'disabled'}><i class="fas fa-stop"></i></button>
-          </div>
-        </div>`;
-        }).join('');
-      return `<details class="sfx-bloque">
-        <summary><i class="${b.icono}"></i><span class="sfx-bloque-titulo">${b.titulo}</span></summary>
-        <div class="sfx-bloque-contenido">${filas}</div>
-      </details>`;
-    }).join('');
-    cont.className = master ? 'sfx-lista' : 'sfx-lista sfx-disabled';
-    cont.innerHTML = items;
-  };
 
   window.reprobarGol = function () {
     reproducirSFX('gol');
@@ -1566,13 +1987,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Restaurar volumen guardado o usar default bajo
-  const savedVolume = localStorage.getItem('bl_volume_general') || localStorage.getItem('bl_theme_volume');
+  const savedVolume = BL.core.leerAjusteRaw('bl_volume_general') || BL.core.leerAjusteRaw('bl_theme_volume');
   estadoAudio.volumenGeneral = savedVolume !== null ? parseFloat(savedVolume) : DEFAULT_VOLUME;
   if (isNaN(estadoAudio.volumenGeneral)) estadoAudio.volumenGeneral = DEFAULT_VOLUME;
   const cbSfx = document.getElementById('checkbox-sfx');
-  const savedSfxMaster = localStorage.getItem('bl_sfx_activados');
+  const savedSfxMaster = BL.core.leerAjusteRaw('bl_sfx_activados');
   if (savedSfxMaster !== null) estadoAudio.sfxActivados = savedSfxMaster === 'true';
-  const savedSfxInd = localStorage.getItem('bl_sfx_individuales');
+  const savedSfxInd = BL.core.leerAjusteRaw('bl_sfx_individuales');
   if (savedSfxInd) {
     try {
       const parsed = JSON.parse(savedSfxInd);
@@ -1581,14 +2002,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (cbSfx) cbSfx.checked = estadoAudio.sfxActivados;
   setVolume(estadoAudio.volumenGeneral);
-  renderListaSFX();
+  window.renderListaSFX();
 
   volSlider.addEventListener('input', function () {
     cambiarVolumenGeneral(this.value);
   });
 
   // Autoplay al cargar (si el navegador lo permite y el usuario no lo pausó antes)
-  if (localStorage.getItem('bl_theme_autoplay') !== 'false') {
+  if (BL.core.leerAjusteRaw('bl_theme_autoplay') !== 'false') {
     themeAudio.play().catch(() => {
       document.querySelector('.menu-buttons').addEventListener('click', function initOnClick() {
         themeAudio.play();
@@ -1600,10 +2021,10 @@ document.addEventListener('DOMContentLoaded', () => {
   playBtn.addEventListener('click', function () {
     if (isPlaying) {
       themeAudio.pause();
-      localStorage.setItem('bl_theme_autoplay', 'false');
+      BL.core.guardarAjuste('bl_theme_autoplay', 'false');
     } else {
       themeAudio.play();
-      localStorage.setItem('bl_theme_autoplay', 'true');
+      BL.core.guardarAjuste('bl_theme_autoplay', 'true');
     }
   });
 
@@ -1636,7 +2057,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Renderizar Hub desde blue_lock_save
   window.renderHub = function () {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     gameState.monedas = data.monedas ?? gameState.monedas;
@@ -1646,7 +2067,7 @@ document.addEventListener('DOMContentLoaded', () => {
     actualizarBuzonBadge();
 
     document.getElementById('hub-nombre').textContent = data.jugador?.nombre || data.manager?.nombre || '—';
-    document.getElementById('hub-equipo').textContent = data.jugador ? data.jugador.pais : data.manager?.equipo || '—';
+    document.getElementById('hub-equipo').textContent = data.jugador ? data.jugador.pais : (data.manager?.equipo || 'AGENTE LIBRE');
 
     const rolEl = document.getElementById('hub-rol');
     const statsEl = document.getElementById('hub-stats');
@@ -1673,29 +2094,37 @@ document.addEventListener('DOMContentLoaded', () => {
         if (span) span.textContent = 'PLANTILLA';
       }
       const m = data.manager;
-      const presupuesto = typeof m.presupuesto === 'number' ? m.presupuesto : (NEO_EQUIPOS.find(e => e.name === m.equipo)?.budget ?? 0);
-      const numJug = getPlantillaEquipo(m.equipo).length;
+      const presupuesto = typeof m.presupuesto === 'number' ? m.presupuesto : (m.equipo ? (NEO_EQUIPOS.find(e => e.name === m.equipo)?.budget ?? 0) : 0);
+      const numJug = m.equipo ? getPlantillaEquipo(m.equipo).length : 0;
       const semana = m.semana || 0;
+      const rolTxt = m.equipo ? 'MANAGER' : 'AGENTE LIBRE';
+      rolEl.textContent = rolTxt;
       statsEl.innerHTML = `
         <span><i class="fas fa-coins"></i> Presupuesto: ${formatearYenes(presupuesto)}</span>
         <span><i class="fas fa-users"></i> Plantilla: ${numJug} jug.</span>
         <span><i class="fas fa-calendar-week"></i> Semana: ${semana}</span>
         <span><i class="fas fa-store"></i> Fichajes: ${(m.fichajes || []).length}</span>
       `;
+      // Mostrar/ocultar botones que dependen de tener club
+      const conClub = !!m.equipo;
+      ['hub-btn-mercado', 'hub-btn-entrenar', 'hub-btn-tactica', 'hub-btn-cantera', 'hub-btn-calendario', 'hub-btn-clasificacion', 'hub-btn-jugar'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.style.display = conClub ? '' : 'none';
+      });
     }
   };
 
   // Guardar estado actual (monedas, gemas) en blue_lock_save
   window.guardarEstado = function () {
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return;
       const data = JSON.parse(saved);
       if (!data || typeof data !== 'object') return;
       data.monedas = gameState.monedas;
       data.gemas = gameState.gemas;
       data.historia = gameState.historia;
-      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      BL.core.guardarPartida(JSON.stringify(data));
       sincronizarSlotActivo();
     } catch (e) {
       console.error('Error al guardar partida:', e);
@@ -1709,7 +2138,7 @@ document.addEventListener('DOMContentLoaded', () => {
       plantillaVista = 'info';
       reproducirMusicaPantalla('inspiration');
 
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) { console.error('renderPlantilla: sin save'); return; }
       const data = JSON.parse(saved);
       const grid = document.getElementById('plantilla-grid');
@@ -1780,12 +2209,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const statsCriteria = [
       { key: 'grl', label: 'GRL' },
       { key: 'nombre', label: 'NOMBRE' },
-      { key: 'pac', label: 'PAC' },
-      { key: 'tiro', label: 'SHO' },
+      { key: 'pac', label: 'RIT' },
+      { key: 'tiro', label: 'TIR' },
       { key: 'pase', label: 'PAS' },
-      { key: 'regate', label: 'DRI' },
+      { key: 'regate', label: 'REG' },
       { key: 'defensa', label: 'DEF' },
-      { key: 'phy', label: 'PHY' }
+      { key: 'phy', label: 'FIS' }
     ];
     const rendimientoCriteria = [
       { key: 'nombre', label: 'NOMBRE' },
@@ -1846,7 +2275,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (previewPlantillaData) {
       jugadores = [...previewPlantillaData];
     } else {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return;
       const data = JSON.parse(saved);
       if (data.tipo !== 'manager' || !data.manager) return;
@@ -1934,7 +2363,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   function getEntrenamientoData() {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return null;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return null;
@@ -1952,7 +2381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const data = getEntrenamientoData();
     if (!data) return;
     data.manager.entrenadoSemana = true;
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
   };
 
   window.avanzarSemana = function () {
@@ -1960,7 +2389,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!data) return;
     data.manager.semana += 1;
     data.manager.entrenadoSemana = false;
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
   };
 
   window.aplicarEntrenamientoManual = function (items) {
@@ -2023,7 +2452,7 @@ document.addEventListener('DOMContentLoaded', () => {
       resultado.jugadores.push(item);
     });
 
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
     return resultado;
   };
 
@@ -2036,7 +2465,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.renderEntrenar = function () {
     reproducirMusicaPantalla('push_forward');
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     document.getElementById('entrenar-monedas').textContent = gameState.monedas;
@@ -2118,7 +2547,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.toggleJugadorEntrenar = function (jugId) {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     const jug = getJugador(jugId, data.manager?.equipo);
@@ -2140,7 +2569,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.confirmarEntrenamiento = function () {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -2167,7 +2596,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', function (e) {
     const btn = e.target.closest('.btn-upgrade');
     if (!btn) return;
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     if (!data.jugador) return;
@@ -2401,7 +2830,7 @@ document.addEventListener('DOMContentLoaded', () => {
     container.innerHTML = '';
     if (ligaEl) ligaEl.textContent = '';
 
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -2552,7 +2981,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.renderTactica = function (sinMusica) {
     if (!sinMusica) reproducirMusicaPantalla('inspiration');
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -2564,7 +2993,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const formacion = eq?.formation || '4-3-3';
       const { once, banca } = elegirMejorOnce(jugadores, formacion);
       data.manager.tactica = { formacion, once, banca };
-      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      BL.core.guardarPartida(JSON.stringify(data));
     }
     slotSeleccionado = null;
     subSeleccionado = null;
@@ -2585,7 +3014,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Jugadores traspasados a otro club: buscarlos por id en toda la base y devolverlos con su club nuevo
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (saved) {
         const d = JSON.parse(saved);
         const t = d.manager?.traspasos?.[id];
@@ -2642,7 +3071,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function aplicarEntrenamiento(jug) {
     if (!jug || !jug.id) return jug;
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return jug;
       const data = JSON.parse(saved);
       const rec = data.manager?.entrenamiento?.[jug.id];
@@ -2678,7 +3107,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getFichajes() {
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return [];
       const data = JSON.parse(saved);
       if (data.tipo !== 'manager' || !data.manager?.fichajes) return [];
@@ -2713,7 +3142,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Leer jugadores inyectados del save (si existen); fallback a la base global
     let inyectado = null;
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (saved) {
         const d = JSON.parse(saved);
         if (d.manager?.equipos) inyectado = d.manager.equipos;
@@ -2744,7 +3173,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const vendidos = [];
       let traspasos = {};
       try {
-        const saved = localStorage.getItem('blue_lock_save');
+        const saved = BL.core.leerGuardado();
         if (saved) {
           const data = JSON.parse(saved);
           if (data.manager?.vendidos) vendidos.push(...data.manager.vendidos);
@@ -2770,7 +3199,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function estaEnListaTraspasos(id) {
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return false;
       const data = JSON.parse(saved);
       if (data.tipo !== 'manager' || !data.manager) return false;
@@ -2808,9 +3237,9 @@ document.addEventListener('DOMContentLoaded', () => {
           : `<span class="pfila-valor">${formatearYenes(calcularValor(grl, jug))}</span>`}
       </div>
       <div class="pfila-stats">
-        <div class="pfila-stat"><span>SHO</span>${jug.tiro}</div>
+        <div class="pfila-stat"><span>TIR</span>${jug.tiro}</div>
         <div class="pfila-stat"><span>PAS</span>${jug.pase}</div>
-        <div class="pfila-stat"><span>DRI</span>${jug.regate}</div>
+        <div class="pfila-stat"><span>REG</span>${jug.regate}</div>
         <div class="pfila-stat"><span>DEF</span>${jug.defensa}</div>
       </div>
     </div>`;
@@ -2864,18 +3293,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const esPOR = jug.posicion === 'POR';
     const enLT = estaEnListaTraspasos(jug.id);
     const statsHtml = esPOR
-      ? `<div class="pfila-stat"><span>DIV</span>${jug.div || 60}</div>
-         <div class="pfila-stat"><span>HAN</span>${jug.han || 60}</div>
-         <div class="pfila-stat"><span>KIC</span>${jug.kic || 60}</div>
+      ? `<div class="pfila-stat"><span>EST</span>${jug.div || 60}</div>
+         <div class="pfila-stat"><span>PAR</span>${jug.han || 60}</div>
+         <div class="pfila-stat"><span>SAQ</span>${jug.kic || 60}</div>
          <div class="pfila-stat"><span>REF</span>${jug.ref || 60}</div>
-         <div class="pfila-stat"><span>SPD</span>${jug.spd || 60}</div>
+         <div class="pfila-stat"><span>VEL</span>${jug.spd || 60}</div>
          <div class="pfila-stat"><span>POS</span>${jug.pos || 60}</div>`
-      : `<div class="pfila-stat"><span>PAC</span>${jug.pac || 60}</div>
-         <div class="pfila-stat"><span>SHO</span>${jug.tiro}</div>
+      : `<div class="pfila-stat"><span>RIT</span>${jug.pac || 60}</div>
+         <div class="pfila-stat"><span>TIR</span>${jug.tiro}</div>
          <div class="pfila-stat"><span>PAS</span>${jug.pase}</div>
-         <div class="pfila-stat"><span>DRI</span>${jug.regate}</div>
+         <div class="pfila-stat"><span>REG</span>${jug.regate}</div>
          <div class="pfila-stat"><span>DEF</span>${jug.defensa}</div>
-         <div class="pfila-stat"><span>PHY</span>${jug.phy || 60}</div>`;
+         <div class="pfila-stat"><span>FIS</span>${jug.phy || 60}</div>`;
     return `<div class="pfila pfila-stats-row">
       <div class="pfila-grl">${grl}</div>
       <div class="pfila-avatar">
@@ -2946,10 +3375,10 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="ficha-header"><span>BLUE LOCK PROJECT</span></div>
       <div class="ficha-top">
         <div class="ficha-data-grid">
-          <div class="ficha-row"><div class="ficha-label">FULL NAME</div><div class="ficha-value">${jug.nombre.toUpperCase()}</div></div>
-          <div class="ficha-row"><div class="ficha-label">POSITION</div><div class="ficha-value">${jug.posicion}</div></div>
-          <div class="ficha-row"><div class="ficha-label">SEC. POSITION</div><div class="ficha-value">${jug.posicionSec || '—'}</div></div>
-          <div class="ficha-row"><div class="ficha-label">DOM. FOOT</div><div class="ficha-value">${pieTexto(jug)}</div></div>
+          <div class="ficha-row"><div class="ficha-label">NOMBRE COMPLETO</div><div class="ficha-value">${jug.nombre.toUpperCase()}</div></div>
+          <div class="ficha-row"><div class="ficha-label">POSICIÓN</div><div class="ficha-value">${jug.posicion}</div></div>
+          <div class="ficha-row"><div class="ficha-label">POS. SECUNDARIA</div><div class="ficha-value">${jug.posicionSec || '—'}</div></div>
+          <div class="ficha-row"><div class="ficha-label">PIE DOMINANTE</div><div class="ficha-value">${pieTexto(jug)}</div></div>
           <div class="ficha-row"><div class="ficha-label">GRL</div><div class="ficha-value">${grl}</div></div>
         </div>
         <div class="ficha-photo">
@@ -2985,12 +3414,12 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div class="ut-name">${apellido}</div>
       <div class="ut-stats">
-        <div class="ut-stat"><span class="ut-stat-label">PAC</span><span class="ut-stat-val">${jug.pac || 60}</span></div>
-        <div class="ut-stat"><span class="ut-stat-label">SHO</span><span class="ut-stat-val">${jug.tiro}</span></div>
+        <div class="ut-stat"><span class="ut-stat-label">RIT</span><span class="ut-stat-val">${jug.pac || 60}</span></div>
+        <div class="ut-stat"><span class="ut-stat-label">TIR</span><span class="ut-stat-val">${jug.tiro}</span></div>
         <div class="ut-stat"><span class="ut-stat-label">PAS</span><span class="ut-stat-val">${jug.pase}</span></div>
-        <div class="ut-stat"><span class="ut-stat-label">DRI</span><span class="ut-stat-val">${jug.regate}</span></div>
+        <div class="ut-stat"><span class="ut-stat-label">REG</span><span class="ut-stat-val">${jug.regate}</span></div>
         <div class="ut-stat"><span class="ut-stat-label">DEF</span><span class="ut-stat-val">${jug.defensa}</span></div>
-        <div class="ut-stat"><span class="ut-stat-label">PHY</span><span class="ut-stat-val">${jug.phy || 60}</span></div>
+        <div class="ut-stat"><span class="ut-stat-label">FIS</span><span class="ut-stat-val">${jug.phy || 60}</span></div>
       </div>
     </div>`;
   }
@@ -3091,7 +3520,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderCampo() {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     let data;
     try {
@@ -3116,7 +3545,7 @@ document.addEventListener('DOMContentLoaded', () => {
       once: Array.isArray(tactica.once) ? tactica.once : [],
       banca: Array.isArray(tactica.banca) ? tactica.banca : []
     };
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
 
     const pos = FORMACIONES_POS[formacion];
     const once = data.manager.tactica.once;
@@ -3149,7 +3578,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderSuplentes() {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     const equipo = data.manager.equipo;
@@ -3178,7 +3607,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.clickSlot = function (idx) {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     const tactica = data.manager.tactica;
@@ -3190,7 +3619,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tactica.banca[subSeleccionado] = titularId;
       slotSeleccionado = null;
       subSeleccionado = null;
-      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      BL.core.guardarPartida(JSON.stringify(data));
       renderCampo();
       renderSuplentes();
       return;
@@ -3204,13 +3633,13 @@ document.addEventListener('DOMContentLoaded', () => {
       [tactica.once[slotSeleccionado], tactica.once[idx]] = [tactica.once[idx], tactica.once[slotSeleccionado]];
       slotSeleccionado = null;
     }
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
     renderCampo();
     renderSuplentes();
   };
 
   window.clickSub = function (jugId, bidx) {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     const tactica = data.manager.tactica;
@@ -3222,7 +3651,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (bancaIdx !== -1) tactica.banca[bancaIdx] = titularId;
       slotSeleccionado = null;
       subSeleccionado = null;
-      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      BL.core.guardarPartida(JSON.stringify(data));
       renderCampo();
       renderSuplentes();
       return;
@@ -3236,18 +3665,18 @@ document.addEventListener('DOMContentLoaded', () => {
       [tactica.banca[subSeleccionado], tactica.banca[bidx]] = [tactica.banca[bidx], tactica.banca[subSeleccionado]];
       subSeleccionado = null;
     }
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
     renderCampo();
     renderSuplentes();
   };
 
   window.cambiarFormacion = function (form) {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
     data.manager.tactica.formacion = form;
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
     const lbl = document.getElementById('tactica-formacion-label');
     if (lbl) lbl.textContent = form;
     const panel = document.getElementById('mercado-formacion-panel');
@@ -3297,7 +3726,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let cacheSaveParseadoKey = null;
 
   function leerSaveCacheado() {
-    const s = localStorage.getItem('blue_lock_save');
+    const s = BL.core.leerGuardado();
     if (cacheSaveParseadoKey === s) return cacheSaveParseado;
     cacheSaveParseado = s ? JSON.parse(s) : null;
     cacheSaveParseadoKey = s;
@@ -3330,7 +3759,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getPresupuestoManager() {
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return 0;
       const data = JSON.parse(saved);
       if (data.tipo !== 'manager' || !data.manager) return 0;
@@ -3338,10 +3767,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const eq = NEO_EQUIPOS.find(e => e.name === data.manager.equipo);
         data.manager.presupuesto = eq?.budget ?? 5000000000;
         if (!data.manager.fichajes) data.manager.fichajes = [];
-        localStorage.setItem('blue_lock_save', JSON.stringify(data));
+        BL.core.guardarPartida(JSON.stringify(data));
       } else if (data.manager.presupuesto < 10000) {
         data.manager.presupuesto = data.manager.presupuesto * 1000000;
-        localStorage.setItem('blue_lock_save', JSON.stringify(data));
+        BL.core.guardarPartida(JSON.stringify(data));
       }
       return data.manager.presupuesto;
     } catch (e) {
@@ -3353,7 +3782,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let cacheTodosLosJugadoresKey = null;
 
   function todosLosJugadores() {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     const clave = saved || '';
     if (cacheTodosLosJugadores && cacheTodosLosJugadoresKey === clave) {
       return cacheTodosLosJugadores;
@@ -3486,7 +3915,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.filtrarMercado = function () {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -3595,13 +4024,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.ficharJugador = function (jugadorId, precioOferta) {
     cerrarFicha();
-    let saved = localStorage.getItem('blue_lock_save');
+    let saved = BL.core.leerGuardado();
     if (!saved) return;
     let data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
     if (typeof data.manager.presupuesto !== 'number') {
       getPresupuestoManager();
-      saved = localStorage.getItem('blue_lock_save');
+      saved = BL.core.leerGuardado();
       if (!saved) return;
       data = JSON.parse(saved);
     }
@@ -3639,7 +4068,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!data.manager.vendidos) data.manager.vendidos = [];
       if (!data.manager.vendidos.includes(jugadorId)) data.manager.vendidos.push(jugadorId);
     }
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
 
     document.getElementById('mercado-presupuesto').textContent = formatearYenes(data.manager.presupuesto);
     mostrarModal('¡FICHAJE COMPLETADO!', `¡Fichaje de ${jug.nombre} completado! Ha sido añadido a tu plantilla${esAgente ? ' (AGENTE LIBRE, gratis)' : ''}.`);
@@ -3648,7 +4077,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.venderJugador = function (jugadorId) {
     cerrarFicha();
-    let saved = localStorage.getItem('blue_lock_save');
+    let saved = BL.core.leerGuardado();
     if (!saved) return;
     let data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -3662,13 +4091,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     data.manager.listaTraspasos.push(jugadorId);
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
     try {
       generarOfertasTraspaso(data);
     } catch (e) {
       console.error('Error al generar ofertas de traspaso:', e);
     }
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
 
     document.getElementById('mercado-presupuesto').textContent = formatearYenes(data.manager.presupuesto);
     mostrarModal('JUGADOR EN LISTA DE TRASPASOS', `${jug.nombre} ha sido añadido a la lista de traspasos. Los clubes interesados te enviarán ofertas por el buzón de inmediato y en cada jornada mientras siga en la lista.`);
@@ -3681,7 +4110,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.quitarDeListaTraspasos = function (jugadorId) {
     cerrarFicha();
-    let saved = localStorage.getItem('blue_lock_save');
+    let saved = BL.core.leerGuardado();
     if (!saved) return;
     let data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -3692,7 +4121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.manager.listaTraspasos) {
       data.manager.listaTraspasos = data.manager.listaTraspasos.filter(id => id !== jugadorId);
     }
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
 
     document.getElementById('mercado-presupuesto').textContent = formatearYenes(data.manager.presupuesto);
     mostrarModal('RETIRADO DE LA LISTA', `${jug.nombre} ya no está en la lista de traspasos.`);
@@ -3704,7 +4133,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // ===== ENTRENAMIENTO SEMANAL =====
-  const ETIQUETAS_STATS = { pac: 'PAC', sho: 'SHO', pas: 'PAS', dri: 'DRI', def: 'DEF', phy: 'PHY' };
+  const ETIQUETAS_STATS = { pac: 'RIT', sho: 'TIR', pas: 'PAS', dri: 'REG', def: 'DEF', phy: 'FIS' };
 
   // ===== SIMULADOR DE JORNADA (MODO CARRERA MANAGER) =====
   function aplicarResultado(clasif, localId, visitId, gl, gv) {
@@ -3818,7 +4247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function partidoJugadoresDelOnce(equipoNombre) {
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return [];
       const d = JSON.parse(saved);
       const once = d.manager?.tactica?.once || [];
@@ -4036,7 +4465,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Sincronizar el mapa de rendimiento acumulado durante el partido antes de guardar
       rendimientoCache = null;
       data.manager.rendimiento = leerRendimientoData();
-      localStorage.setItem('blue_lock_save', JSON.stringify(data));
+      BL.core.guardarPartida(JSON.stringify(data));
       sincronizarSlotActivo();
     } catch (e) {
       console.error('Error al finalizar partido:', e);
@@ -4706,13 +5135,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.iniciarJornada = function () {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
     const { temporada, liga } = getTemporada(data);
     if (!liga) return;
-    localStorage.setItem('blue_lock_save', JSON.stringify(data));
+    BL.core.guardarPartida(JSON.stringify(data));
     const ligaKey = liga.nombre;
     const eqManager = NEO_EQUIPOS.find(e => e.name === data.manager.equipo);
     if (!eqManager) return;
@@ -4722,7 +5151,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const plantillaJ = getPlantillaEquipo(data.manager.equipo);
         data.manager.tactica = elegirMejorOnce(plantillaJ, eqManager.formation || '4-3-3');
-        localStorage.setItem('blue_lock_save', JSON.stringify(data));
+        BL.core.guardarPartida(JSON.stringify(data));
       } catch (e) { console.error('Error inicializando táctica en iniciarJornada:', e); }
     }
 
@@ -4799,7 +5228,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.actualizarTablaClasificacion = function () {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) return;
@@ -4808,7 +5237,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.jugarProximoPartido = function () {
-    const saved = localStorage.getItem('blue_lock_save');
+    const saved = BL.core.leerGuardado();
     if (!saved) return;
     const data = JSON.parse(saved);
     if (data.tipo !== 'manager' || !data.manager) {
@@ -4872,7 +5301,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.abrirFichaJugador = function (jugadorId) {
     let jug;
     if (jugadorId === 'jugador') {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (!saved) return;
       const data = JSON.parse(saved);
       if (!data.jugador) return;
@@ -4920,7 +5349,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const armas = (typeof ARMAS_DATABASE !== 'undefined') ? ARMAS_DATABASE[jug.id] : null;
     let bloqueArma = '';
     if (armas && armas.length) {
-      const etiquetas = { pac: 'PAC', sho: 'SHO', pas: 'PAS', dri: 'DRI', def: 'DEF', phy: 'PHY' };
+      const etiquetas = { pac: 'RIT', sho: 'TIR', pas: 'PAS', dri: 'REG', def: 'DEF', phy: 'FIS' };
       const headerArma = armas.length > 1 ? 'ARMAS' : 'ARMA PRINCIPAL';
       const tarjetas = armas.map(a => {
         const efectos = Object.entries(a.stats || {})
@@ -4942,7 +5371,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let btnOferta = '';
     try {
-      const saved = localStorage.getItem('blue_lock_save');
+      const saved = BL.core.leerGuardado();
       if (saved && jugadorId !== 'player') {
         const data = JSON.parse(saved);
         if (data.tipo === 'manager' && data.manager) {
@@ -4986,19 +5415,19 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="ficha-top">
         <div class="ficha-data-grid">
           <div class="ficha-row">
-            <div class="ficha-label">FULL NAME</div>
+            <div class="ficha-label">NOMBRE COMPLETO</div>
             <div class="ficha-value">${jug.nombre.toUpperCase()}</div>
           </div>
           <div class="ficha-row">
-            <div class="ficha-label">SCHOOL</div>
+            <div class="ficha-label">INSTITUTO</div>
             <div class="ficha-value">${jug.instituto || '—'}</div>
           </div>
           <div class="ficha-row">
-            <div class="ficha-label">NATIONALITY</div>
+            <div class="ficha-label">NACIONALIDAD</div>
             <div class="ficha-value">${jug.bandera || ''} ${jug.nacionalidad || '—'}</div>
           </div>
           <div class="ficha-row">
-            <div class="ficha-label">AGE</div>
+            <div class="ficha-label">EDAD</div>
             <div class="ficha-value">${jug.edad}</div>
           </div>
           <div class="ficha-row">
@@ -5006,19 +5435,19 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="ficha-value">${formatearYenes(calcularValor(grlFicha, jug))}</div>
           </div>
           <div class="ficha-row">
-            <div class="ficha-label">POSITION</div>
+            <div class="ficha-label">POSICIÓN</div>
             <div class="ficha-value">${jug.posicion}</div>
           </div>
           <div class="ficha-row">
-            <div class="ficha-label">SEC. POSITION</div>
+            <div class="ficha-label">POS. SECUNDARIA</div>
             <div class="ficha-value">${jug.posicionSec || '—'}</div>
           </div>
           <div class="ficha-row">
-            <div class="ficha-label">HEIGHT</div>
+            <div class="ficha-label">ALTURA</div>
             <div class="ficha-value">${jug.altura}cm</div>
           </div>
           <div class="ficha-row">
-            <div class="ficha-label">DOM. FOOT</div>
+            <div class="ficha-label">PIE DOMINANTE</div>
             <div class="ficha-value">${jug.pie}</div>
           </div>
         </div>
@@ -5036,8 +5465,8 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div class="ficha-stats-grid ficha-stats-6">
         ${jug.posicion === 'POR'
-          ? `${cuadrito('DIV', jug.div || 60)}${cuadrito('HAN', jug.han || 60)}${cuadrito('KIC', jug.kic || 60)}${cuadrito('REF', jug.ref || 60)}${cuadrito('SPD', jug.spd || 60)}${cuadrito('POS', jug.pos || 60)}`
-          : `${cuadrito('PAC', jug.pac || 60)}${cuadrito('SHO', jug.tiro)}${cuadrito('PAS', jug.pase)}${cuadrito('DRI', jug.regate)}${cuadrito('DEF', jug.defensa)}${cuadrito('PHY', jug.phy || 60)}`}
+          ? `${cuadrito('EST', jug.div || 60)}${cuadrito('PAR', jug.han || 60)}${cuadrito('SAQ', jug.kic || 60)}${cuadrito('REF', jug.ref || 60)}${cuadrito('VEL', jug.spd || 60)}${cuadrito('POS', jug.pos || 60)}`
+          : `${cuadrito('RIT', jug.pac || 60)}${cuadrito('TIR', jug.tiro)}${cuadrito('PAS', jug.pase)}${cuadrito('REG', jug.regate)}${cuadrito('DEF', jug.defensa)}${cuadrito('FIS', jug.phy || 60)}`}
       </div>
       <div class="ficha-rendimiento">
         <div class="ficha-arma-header"><i class="fas fa-chart-simple"></i> RENDIMIENTO DE TEMPORADA</div>
@@ -5065,156 +5494,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') cerrarFicha();
   });
 
-  // Historia: obtener foto de personaje
-  function getPersonajeFoto(nombre) {
-    let p = null;
-    if (typeof PLANTILLAS_EQUIPO !== 'undefined') {
-      for (const key of Object.keys(PLANTILLAS_EQUIPO)) {
-        for (const j of PLANTILLAS_EQUIPO[key]) {
-          if (nombre.toLowerCase().includes(j.nombre.split(' ')[0].toLowerCase()) || j.nombre.includes(nombre)) {
-            p = j; break;
-          }
-        }
-        if (p) break;
-      }
-    }
-    return p?.foto || '';
-  }
-
-  // Historia: renderizar según estado
-  window.renderHistoria = function () {
-    if (!MODO_HISTORIA || !MODO_HISTORIA.length) return;
-    const cap = MODO_HISTORIA[0];
-    document.getElementById('historia-cap-titulo').textContent = cap.titulo;
-
-    if (gameState.historia.estado === 'dialogo') {
-      renderDialogoHistoria();
-    } else {
-      renderMenuHistoria();
-    }
-  };
-
-  // Historia: menú de partidos
-  function renderMenuHistoria() {
-    const cap = MODO_HISTORIA[0];
-    let html = `<div class="bl-card"><p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">${cap.descripcion}</p></div><div style="display:flex;flex-direction:column;gap:8px;">`;
-
-    cap.partidos.forEach((p, i) => {
-      const done = gameState.historia.completados.includes(p.id);
-      const blocked = i > 0 && !gameState.historia.completados.includes(cap.partidos[i - 1].id);
-      const unlocked = !done && !blocked;
-      let icon, cls, label;
-      if (done) { icon = 'fa-check-circle'; cls = 'completado'; label = 'COMPLETADO'; }
-      else if (blocked) { icon = 'fa-lock'; cls = 'bloqueado'; label = 'BLOQUEADO'; }
-      else { icon = 'fa-play-circle'; cls = 'disponible'; label = 'DISPONIBLE'; }
-
-      html += `<div class="historia-match ${cls} anim-fila"${animFila(i)} data-idx="${i}" ${unlocked ? 'onclick="iniciarPartido(' + i + ')"' : ''}>
-        <div class="match-icon"><i class="fas ${icon}"></i></div>
-        <div class="match-info">
-          <span class="match-rival">${p.rival}</span>
-          <span class="match-status">${label}</span>
-        </div>
-      </div>`;
-    });
-
-    html += '</div>';
-    const btnCont = document.getElementById('btn-continuar-historia');
-
-    if (cap.partidos.every(p => gameState.historia.completados.includes(p.id))) {
-      html += `<div class="bl-card" style="margin-top:12px;text-align:center;border-color:var(--gold-ego);">
-        <h4 style="color:var(--gold-ego);">🏆 CAPÍTULO COMPLETADO</h4>
-        <p style="font-size:0.8rem;color:var(--text-muted);">Has superado la Primera Selección. Nuevos desafíos te esperan.</p>
-      </div>`;
-    }
-
-    document.getElementById('historia-content').innerHTML = html;
-  }
-
-  // Historia: renderizar diálogo
-  function renderDialogoHistoria() {
-    const cap = MODO_HISTORIA[0];
-    const partido = cap.partidos[gameState.historia.partidoActual];
-    const dialogos = gameState.historia.dialogoTipo === 'pre' ? partido.dialogoPre : partido.dialogoPost;
-    const idx = gameState.historia.dialogoIndex;
-    const linea = dialogos[idx];
-    const isLast = idx >= dialogos.length - 1;
-
-    const foto = getPersonajeFoto(linea.personaje);
-    const src = foto || 'assets/players/default.png';
-
-    let html = `<div class="dialogo-scene">
-      <div class="dialogo-avatar-wrap">
-        <img src="${src}" onerror="this.onerror=null;this.src='assets/players/default.png';this.addEventListener('error',function(){this.style.display='none'})" alt="${linea.personaje}">
-        <i class="fas fa-user plantilla-avatar-fallback"></i>
-      </div>
-      <span class="dialogo-nombre">${linea.personaje}</span>
-      <div class="dialogo-bubble">
-        <p>"${linea.texto}"</p>
-      </div>`;
-
-    if (!isLast) {
-      html += `<button class="btn-bluelock btn-dialogo" onclick="avanzarDialogo()">SIGUIENTE <i class="fas fa-arrow-right"></i></button>`;
-    } else if (gameState.historia.dialogoTipo === 'post') {
-      html += `<button class="btn-bluelock btn-gold btn-dialogo" onclick="completarPartido()"><i class="fas fa-check"></i> CONTINUAR</button>`;
-    } else {
-      html += `<button class="btn-bluelock btn-gold btn-dialogo" onclick="mostrarModalPartido()"><i class="fas fa-fire"></i> JUGAR PARTIDO</button>`;
-    }
-
-    html += `</div>`;
-    document.getElementById('historia-content').innerHTML = html;
-  }
-
-  // Historia: iniciar partido
-  window.iniciarPartido = function (idx) {
-    gameState.historia.partidoActual = idx;
-    gameState.historia.dialogoIndex = 0;
-    gameState.historia.dialogoTipo = 'pre';
-    gameState.historia.estado = 'dialogo';
-    renderHistoria();
-  };
-
-  // Historia: avanzar diálogo
-  window.avanzarDialogo = function () {
-    gameState.historia.dialogoIndex++;
-    renderHistoria();
-  };
-
-  // Historia: modal simular resultado
-  window.mostrarModalPartido = function () {
-    document.getElementById('modal-title').innerHTML = '<i class="fas fa-futbol"></i> RESULTADO DEL PARTIDO';
-    document.getElementById('modal-body').innerHTML = `
-      <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:16px;">Selecciona el resultado del partido:</p>
-      <button class="btn-bluelock btn-gold" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="simularPartido(true)">⚽ VICTORIA 3-1</button>
-      <button class="btn-bluelock" style="width:100%;justify-content:center;border-color:var(--danger-red);" onclick="simularPartido(false)">💔 DERROTA 0-2</button>
-    `;
-    document.getElementById('modal-overlay').classList.add('active');
-  };
-
-  // Historia: procesar resultado
-  window.simularPartido = function (victoria) {
-    cerrarModal();
-    if (victoria) {
-      gameState.monedas += 200;
-      gameState.historia.dialogoIndex = 0;
-      gameState.historia.dialogoTipo = 'post';
-      renderDialogoHistoria();
-    } else {
-      mostrarModal('DERROTA', 'Has perdido el partido. Vuelve a intentarlo cuando estés listo.');
-    }
-  };
-
-  // Historia: completar partido
-  window.completarPartido = function () {
-    const cap = MODO_HISTORIA[0];
-    const partido = cap.partidos[gameState.historia.partidoActual];
-    if (!gameState.historia.completados.includes(partido.id)) {
-      gameState.historia.completados.push(partido.id);
-    }
-    gameState.historia.estado = 'menu';
-    guardarEstado();
-    renderHistoria();
-  };
-
   // Formulario: Crear Jugador
   document.getElementById('form-crear-jugador').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -5224,24 +5503,88 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const posicion = document.getElementById('select-posicion').value;
-    const paisId = document.getElementById('select-pais').value;
+    const nacionalidad = document.getElementById('select-nacionalidad').value;
+    if (!nacionalidad) {
+      mostrarModal('ERROR', 'Elige una nacionalidad.');
+      return;
+    }
+    const bandera = (typeof BANDERAS_PAIS !== 'undefined' ? BANDERAS_PAIS[nacionalidad] : '') || '🌍';
+    const instituto = document.getElementById('input-instituto')?.value.trim() || 'Desconocido';
+    const edad = parseInt(document.getElementById('input-edad')?.value, 10) || 16;
+    const alturaVal = parseInt(document.getElementById('input-altura')?.value, 10) || 175;
+    const pie = document.getElementById('select-pie')?.value || 'Derecho';
+    const posicionSec = document.getElementById('select-possec')?.value || '';
+
+    const statsBase = (typeof EGOISTA_STATS_BASE !== 'undefined') ? (EGOISTA_STATS_BASE[posicion] || {}) : {};
+    const esPOR = posicion === 'POR';
+    const atributos = esPOR
+      ? { est: statsBase.est || 50, man: statsBase.man || 48, saq: statsBase.saq || 45, ref: statsBase.ref || 58, vel: statsBase.vel || 44, col: statsBase.col || 50 }
+      : { tiro: statsBase.tiro || 30, pase: statsBase.pase || 45, regate: statsBase.regate || 40, vision: statsBase.vision || 45, def: statsBase.def || 58, fis: statsBase.fis || 52 };
+    const atributosFin = aplicarBonusAltura(atributos, posicion, parseInt(document.getElementById('input-altura')?.value, 10) || 0);
+    const grl = grlEgoistaBase(atributosFin, esPOR);
+    const statsFichaje = esPOR
+      ? { div: atributosFin.est, han: atributosFin.man, kic: atributosFin.saq, ref: atributosFin.ref, spd: atributosFin.vel, pos: atributosFin.col }
+      : { pac: posicion === 'DC' ? 54 : 55, sho: atributosFin.tiro, pas: atributosFin.pase, dri: atributosFin.regate, def: atributosFin.def, phy: atributosFin.fis };
+    const avatar = egoistaAvatarUrl || 'assets/players/default.png';
 
     const save = {
-      tipo: "jugador",
+      tipo: "manager",
       monedas: gameState.monedas,
       gemas: gameState.gemas,
-      jugador: {
-        nombre, posicion, pais: paisId,
-        stats: { tiro: 65, pase: 65, regate: 65, vision: 65, ego: 70 }
+      manager: {
+        nombre,
+        equipo: null,
+        presupuesto: 0,
+        fichajes: [],
+        vendidos: [],
+        traspasos: {},
+        listaTraspasos: [],
+        rendimiento: {},
+        estamina: {},
+        entrenamiento: {},
+        semana: 0,
+        entrenadoSemana: false,
+        egoista: { nombre, posicion, posicionSec, instituto, edad, altura: alturaVal + 'cm', pie, nacionalidad, bandera, avatar, equipo: null, rango: 'D', grl, stats: { tiro: 65, pase: 65, regate: 65, vision: 65, ego: 70 } },
+        egoistaCreado: { nombre, instituto, nacionalidad: { bandera, pais: nacionalidad }, edad, altura: alturaVal + 'cm', pie, posicion, posicionSec, valor: VALOR_POSICION[posicion] || 1500000, avatar, rango: 'D', grl, atributos: atributosFin },
+        buzon: { mensajes: [] }
       },
       fechaCreacion: new Date().toISOString()
     };
 
-    localStorage.setItem('blue_lock_save', JSON.stringify(save));
-    mostrarModal("¡EGOÍSTA REGISTRADO!", `Bienvenido a Blue Lock, ${nombre}. Tu camino a ser el #1 comienza ahora.`);
+    // El Egoísta como jugador (agente libre) en fichajes
+    save.manager.fichajes.push({
+      id: 'egoista',
+      nombre,
+      posicion,
+      posicionSec: posicionSec || undefined,
+      edad,
+      nacionalidad,
+      bandera,
+      altura: alturaVal + 'cm',
+      pierna: pie,
+      grl,
+      equipo: null,
+      agenteLibre: true,
+      stats: statsFichaje
+    });
+
+    // Inyectar jugadores de todos los equipos (infraestructura del modo manager)
+    save.manager.equipos = {};
+    if (typeof PLANTILLAS_EQUIPO !== 'undefined') {
+      Object.keys(PLANTILLAS_EQUIPO).forEach(teamId => {
+        save.manager.equipos[teamId] = (PLANTILLAS_EQUIPO[teamId] || []).map(j => ({ ...j }));
+      });
+    }
+    save.manager.agentesLibres = (typeof AGENTES_LIBRES !== 'undefined' ? AGENTES_LIBRES : []).map(j => ({ ...j }));
+    getTemporada(save);
+
+    // 3 ofertas de contrato aleatorias de clubes de cualquier liga
+    save.manager.buzon.mensajes = generarMensajeOfertasContrato(save.manager);
+
+    BL.core.guardarPartida(JSON.stringify(save));
     cargarEstado();
-    renderHub();
-    showScreen('screen-hub');
+    renderBuzon();
+    showScreen('screen-buzon');
   });
 
   // Formulario: Iniciar Carrera (Manager)
@@ -5320,9 +5663,9 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('[Inicio Carrera] Equipos inyectados:', Object.keys(save.manager.equipos).length, '| Jugadores:', totalJug);
 
     // Persistir el save completo ANTES de tocar slots
-    localStorage.setItem('blue_lock_save', JSON.stringify(save));
+    BL.core.guardarPartida(JSON.stringify(save));
     const slotId = nuevoSlotId();
-    localStorage.setItem(ACTIVE_SLOT_KEY, slotId);
+    BL.core.guardarSlotActivo(slotId);
     slots.push({
       slotId,
       fechaCreacion: save.fechaCreacion,
@@ -5343,7 +5686,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Init Calls
   try { cargarEstado(); } catch (e) { console.error('init cargarEstado', e); }
-  try { cargarPaisesUI(); } catch (e) { console.error('init cargarPaisesUI', e); }
-  try { renderTienda(); } catch (e) { console.error('init renderTienda', e); }
-  try { renderLogros(); } catch (e) { console.error('init renderLogros', e); }
+  try { cargarNacionalidadesUI(); } catch (e) { console.error('init cargarNacionalidadesUI', e); }
+  try { window.renderTienda(); } catch (e) { console.error('init renderTienda', e); }
+  try { window.renderLogros(); } catch (e) { console.error('init renderLogros', e); }
+  try { window.renderMenuPrincipal(); } catch (e) { console.error('init renderMenuPrincipal', e); }
+
+  // Registro de cargadores de pantalla (navegación segura mostrarPantalla)
+  BL.cargadores['modo-historia'] = function () { window.renderHistoria(); };
+  BL.cargadores['crear-jugador'] = function () {};
+  BL.cargadores['modo-manager'] = function () { tsInit(); };
+  BL.cargadores['tienda'] = function () { window.renderTienda(); };
+  BL.cargadores['logros'] = function () { window.renderLogros(); };
+  BL.cargadores['ajustes'] = function () { window.renderListaSFX(); };
+  BL.cargadores['hub'] = function () { window.renderHub(); };
 });

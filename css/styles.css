@@ -156,6 +156,10 @@ header {
   scrollbar-color: var(--blue-lock-cyan) transparent;
 }
 
+.pantalla-oculta {
+  display: none !important;
+}
+
 .scroll-content {
   flex: 1;
   overflow-y: auto;
@@ -181,7 +185,7 @@ header {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   padding: 10px 0;
 }
@@ -442,6 +446,7 @@ header {
   flex-direction: column;
   gap: 6px;
   margin-top: 8px;
+  transition: opacity 0.3s ease;
 }
 
 .sfx-lista.sfx-disabled {
@@ -455,14 +460,16 @@ header {
   border: 1px solid var(--bg-card-border);
   border-radius: 8px;
   overflow: hidden;
+  transition: opacity 0.3s ease;
 }
 
-.sfx-bloque summary {
+.sfx-bloque-summary {
   list-style: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 10px 12px;
   font-size: 0.72rem;
   font-weight: 800;
@@ -470,24 +477,23 @@ header {
   letter-spacing: 1px;
   color: var(--blue-lock-cyan);
   background: rgba(0, 243, 255, 0.04);
+  border: none;
   border-bottom: 1px solid var(--bg-card-border);
+  font-family: var(--font-family);
+  text-align: left;
   transition: background 0.2s ease;
 }
 
-.sfx-bloque summary i {
+.sfx-bloque-summary i {
   color: var(--gold-ego);
   font-size: 0.9rem;
 }
 
-.sfx-bloque summary .sfx-bloque-titulo {
+.sfx-bloque-summary .sfx-bloque-titulo {
   flex: 1;
 }
 
-.sfx-bloque summary::-webkit-details-marker {
-  display: none;
-}
-
-.sfx-bloque summary::after {
+.sfx-bloque-summary::after {
   content: '+';
   font-size: 1.1rem;
   font-weight: 900;
@@ -496,11 +502,11 @@ header {
   margin-left: auto;
 }
 
-.sfx-bloque[open] summary::after {
+.sfx-bloque.open > .sfx-bloque-summary::after {
   content: '−';
 }
 
-.sfx-bloque summary:hover {
+.sfx-bloque-summary:hover {
   background: rgba(0, 243, 255, 0.08);
 }
 
@@ -508,7 +514,21 @@ header {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  padding: 0 8px;
+  transition: max-height 0.35s ease, opacity 0.3s ease;
+}
+
+.sfx-bloque.open > .sfx-bloque-contenido {
+  max-height: 400px;
+  opacity: 1;
   padding: 8px;
+}
+
+.sfx-bloque.sfx-bloque-sin-activos {
+  opacity: 0.4;
 }
 
 .sfx-item {
@@ -3033,6 +3053,16 @@ header {
   letter-spacing: 1px;
 }
 
+.buzon-oferta-liga {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--blue-lock-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  margin-bottom: 2px;
+}
+
 .buzon-oferta-subida {
   font-size: 0.7rem;
   font-weight: 900;
@@ -3323,6 +3353,10 @@ header {
   border: 1px solid var(--bg-card-border);
   border-radius: 4px;
   overflow: hidden;
+}
+
+.ficha-row:has(.mercado-dropdown) {
+  overflow: visible;
 }
 
 .ficha-label {
@@ -3619,6 +3653,111 @@ header {
   transition: width 0.3s ease;
 }
 
+/* Ficha Egoísta (creación): reutiliza la ficha de jugador */
+.ficha-card.ficha-egoista {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  box-shadow: 0 0 24px var(--blue-lock-glow), inset 0 0 20px rgba(0, 243, 255, 0.05);
+}
+
+.ficha-card.ficha-egoista .ficha-header {
+  position: relative;
+}
+
+.ficha-egoista .ficha-rango {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--gold-ego);
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid var(--gold-ego);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.ficha-hexagono {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+#canvas-hexagono {
+  width: 100%;
+  max-width: 290px;
+  height: auto;
+  display: block;
+}
+
+.ficha-value.editable {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.valor-mercado-fijo {
+  color: var(--gold-ego);
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.ficha-value.editable:hover {
+  background: rgba(0, 243, 255, 0.08);
+}
+
+.ficha-value.editable::after {
+  content: ' ✎';
+  color: var(--blue-lock-cyan);
+  opacity: 0;
+  font-size: 0.7rem;
+  margin-left: auto;
+  transition: opacity 0.15s ease;
+}
+
+.ficha-value.editable:hover::after {
+  opacity: 0.7;
+}
+
+.ficha-inline-input,
+.ficha-inline-select {
+  width: 100%;
+  background: rgba(2, 8, 19, 0.9);
+  border: 1px solid var(--blue-lock-cyan);
+  border-radius: 4px;
+  color: #fff;
+  font-family: var(--font-family);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 6px;
+  outline: none;
+}
+
+.ficha-egoista .ficha-photo {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ficha-egoista .ficha-photo:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.6);
+}
+
+.ficha-egoista .ficha-avatar-hint {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--blue-lock-cyan);
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-align: center;
+  padding: 3px 0;
+  letter-spacing: 0.5px;
+  z-index: 2;
+}
+
 .historia-match {
   display: flex;
   align-items: center;
@@ -3800,7 +3939,8 @@ header {
 }
 
 /* Tactica Pitch */
-.tactica-pitch {
+.tactica-pitch,
+.pos-pitch {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 4;
@@ -3811,7 +3951,12 @@ header {
   overflow: hidden;
 }
 
-.tactica-pitch::before {
+.pos-pitch {
+  max-height: 62vh;
+}
+
+.tactica-pitch::before,
+.pos-pitch::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -3823,7 +3968,8 @@ header {
   border-radius: 50%;
 }
 
-.tactica-pitch::after {
+.tactica-pitch::after,
+.pos-pitch::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -3831,6 +3977,40 @@ header {
   right: 0;
   height: 2px;
   background: rgba(255, 255, 255, 0.12);
+}
+
+.pos-slot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 46px;
+  padding: 6px 4px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+  background: rgba(2, 8, 19, 0.85);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  text-align: center;
+  text-shadow: 0 0 6px currentColor;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+
+.pos-slot.pos-purple { border-color: var(--pos-purple); box-shadow: 0 0 8px rgba(179, 136, 255, 0.5); }
+.pos-slot.pos-red { border-color: var(--pos-red); box-shadow: 0 0 8px rgba(255, 82, 82, 0.5); }
+.pos-slot.pos-orange { border-color: var(--pos-orange); box-shadow: 0 0 8px rgba(255, 171, 64, 0.5); }
+.pos-slot.pos-green { border-color: var(--pos-green); box-shadow: 0 0 8px rgba(105, 240, 174, 0.5); }
+
+.pos-slot:hover {
+  border-color: var(--blue-lock-cyan);
+  box-shadow: 0 0 10px var(--blue-lock-glow);
+}
+
+.pos-slot.selected {
+  border-color: var(--blue-lock-cyan);
+  background: rgba(0, 243, 255, 0.25);
+  box-shadow: 0 0 12px var(--blue-lock-glow);
 }
 
 .form-select optgroup {
@@ -3874,7 +4054,52 @@ header {
   border: 2px solid var(--blue-lock-cyan);
   border-radius: 12px;
   padding: 20px;
+  position: relative;
   box-shadow: 0 0 30px var(--blue-lock-glow);
+}
+
+/* Selector de Nacionalidad (modal) */
+.nac-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: rgba(0, 243, 255, 0.06);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nac-item:hover {
+  border-color: var(--blue-lock-cyan);
+  box-shadow: 0 0 10px var(--blue-lock-glow);
+}
+
+.nac-item.selected {
+  background: linear-gradient(135deg, rgba(0, 243, 255, 0.22), rgba(0, 85, 255, 0.2));
+  border-color: var(--blue-lock-cyan);
+  box-shadow: 0 0 12px var(--blue-lock-glow);
+}
+
+.nac-flag {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.nac-nombre {
+  flex: 1;
+  text-align: left;
+}
+
+.nac-check {
+  color: var(--blue-lock-cyan);
+  flex-shrink: 0;
 }
 
 /* Mercado de Fichajes */
@@ -3947,6 +4172,58 @@ header {
   flex: 1;
   min-width: 0;
   position: relative;
+}
+
+.ficha-altura-dropdown {
+  flex: 1;
+  min-width: 0;
+}
+
+.ficha-altura-dropdown .mercado-drop-btn,
+.ficha-pie-dropdown .mercado-drop-btn {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background: rgba(0, 243, 255, 0.02);
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.ficha-altura-dropdown .mercado-drop-btn:hover,
+.ficha-pie-dropdown .mercado-drop-btn:hover {
+  background: rgba(0, 243, 255, 0.08);
+  border: none;
+}
+
+.ficha-altura-dropdown .mercado-drop-panel,
+.ficha-pie-dropdown .mercado-drop-panel {
+  border-radius: 0;
+}
+
+.ficha-altura-dropdown .mercado-opt,
+.ficha-pie-dropdown .mercado-opt {
+  border-radius: 0;
+  border: none;
+  background: rgba(0, 243, 255, 0.02);
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.ficha-altura-dropdown .mercado-opt:hover,
+.ficha-pie-dropdown .mercado-opt:hover {
+  background: rgba(0, 243, 255, 0.15);
+  color: #fff;
+}
+
+.ficha-altura-dropdown .mercado-opt.active,
+.ficha-pie-dropdown .mercado-opt.active {
+  background: rgba(0, 243, 255, 0.22);
+  color: var(--blue-lock-cyan);
+  border: none;
 }
 
 .mercado-drop-btn {
