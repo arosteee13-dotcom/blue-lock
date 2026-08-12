@@ -283,6 +283,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function onceIdsNPC(teamId) {
+    if (typeof ALINEACIONES_INICIALES !== 'undefined' && ALINEACIONES_INICIALES[teamId]) {
+      const preset = ALINEACIONES_INICIALES[teamId];
+      if (preset.once && preset.once.length) return [...preset.once];
+    }
     if (typeof PLANTILLAS_EQUIPO === 'undefined') return [];
     const plantilla = PLANTILLAS_EQUIPO[teamId] || [];
     const eq = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.find(e => e.id === teamId) : null;
@@ -3411,7 +3415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     "4-3-3": [
       { y: 90, slots: [{x:50, pos:"POR"}] },
       { y: 77, slots: [{x:15, pos:"LI"},{x:35, pos:"DFC"},{x:65, pos:"DFC"},{x:85, pos:"LD"}] },
-      { y: 45, slots: [{x:25, pos:"MCD"},{x:50, pos:"MC"},{x:75, pos:"MCO"}] },
+      { y: 45, slots: [{x:25, pos:"MCD"},{x:50, pos:"MC"},{x:75, pos:"MC"}] },
       { y: 17, slots: [{x:20, pos:"EI"},{x:50, pos:"DC"},{x:80, pos:"ED"}] }
     ],
     "4-4-2": [
@@ -3468,9 +3472,31 @@ document.addEventListener('DOMContentLoaded', () => {
     "3-4-2-1": [
       { y: 90, slots: [{x:50, pos:"POR"}] },
       { y: 75, slots: [{x:22, pos:"DFC"},{x:50, pos:"DFC"},{x:78, pos:"DFC"}] },
-      { y: 52, slots: [{x:12, pos:"MI"},{x:35, pos:"MC"},{x:65, pos:"MC"},{x:88, pos:"MD"}] },
-      { y: 34, slots: [{x:38, pos:"SD"},{x:62, pos:"SD"}] },
+      { y: 52, slots: [{x:12, pos:"CAI"},{x:35, pos:"MCD"},{x:65, pos:"MCD"},{x:88, pos:"CAD"}] },
+      { y: 34, slots: [{x:38, pos:"MCO"},{x:62, pos:"MCO"}] },
       { y: 16, slots: [{x:50, pos:"DC"}] }
+    ],
+    "4-4-2-rombo": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 77, slots: [{x:15, pos:"LI"},{x:35, pos:"DFC"},{x:65, pos:"DFC"},{x:85, pos:"LD"}] },
+      { y: 58, slots: [{x:50, pos:"MCD"}] },
+      { y: 44, slots: [{x:28, pos:"MC"},{x:72, pos:"MC"}] },
+      { y: 32, slots: [{x:50, pos:"MCO"}] },
+      { y: 15, slots: [{x:38, pos:"SD"},{x:62, pos:"DC"}] }
+    ],
+    "3-5-1-1": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 75, slots: [{x:22, pos:"DFC"},{x:50, pos:"DFC"},{x:78, pos:"DFC"}] },
+      { y: 52, slots: [{x:8, pos:"CAI"},{x:32, pos:"MC"},{x:50, pos:"MCD"},{x:68, pos:"MC"},{x:92, pos:"CAD"}] },
+      { y: 32, slots: [{x:50, pos:"MCO"}] },
+      { y: 15, slots: [{x:50, pos:"DC"}] }
+    ],
+    "3-1-3-3": [
+      { y: 90, slots: [{x:50, pos:"POR"}] },
+      { y: 75, slots: [{x:22, pos:"DFC"},{x:50, pos:"DFC"},{x:78, pos:"DFC"}] },
+      { y: 58, slots: [{x:50, pos:"MCD"}] },
+      { y: 42, slots: [{x:30, pos:"MC"},{x:50, pos:"MC"},{x:70, pos:"MCO"}] },
+      { y: 18, slots: [{x:15, pos:"EI"},{x:50, pos:"DC"},{x:85, pos:"ED"}] }
     ],
     "4-2-2-2": [
       { y: 90, slots: [{x:50, pos:"POR"}] },
@@ -6266,7 +6292,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar táctica (once + banca) con la formación del equipo
     try {
       const plantillaInicial = getPlantillaEquipo(equipo);
-      save.manager.tactica = elegirMejorOnce(plantillaInicial, eqInfo?.formation || '4-3-3');
+      const preset = (typeof ALINEACIONES_INICIALES !== 'undefined' && eqInfo)
+        ? ALINEACIONES_INICIALES[eqInfo.id]
+        : null;
+      save.manager.tactica = (preset && preset.once && preset.once.length)
+        ? { formacion: preset.formacion, once: [...preset.once], banca: [...(preset.banca || [])] }
+        : elegirMejorOnce(plantillaInicial, eqInfo?.formation || '4-3-3');
     } catch (e) {
       console.error('Error inicializando táctica:', e);
       save.manager.tactica = { formacion: eqInfo?.formation || '4-3-3', once: [], banca: [] };
