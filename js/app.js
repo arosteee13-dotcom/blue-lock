@@ -3107,6 +3107,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const equipo = data.manager.equipo;
     const jugadores = getPlantillaEquipo(equipo);
     const yaEntrenado = entrenadoEstaSemana();
+    if (entrenarSeleccion.size === 0 && !yaEntrenado) {
+      jugadores.forEach(jug => {
+        entrenarSeleccion.set(jug.id, { jug, stats: new Set(getEnfoqueStats(jug.posicion)) });
+      });
+    }
 
     let html = `<div class="entrenar-semana-banner ${yaEntrenado ? 'usado' : 'disponible'}">
       ${yaEntrenado
@@ -3145,7 +3150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     html += `<button class="btn-bluelock btn-gold entrenar-btn" onclick="confirmarEntrenamiento()" ${yaEntrenado ? 'disabled' : ''}>
-      <i class="fas fa-dumbbell"></i> ENTRENAR (GRATIS)
+      <i class="fas fa-dumbbell"></i> ENTRENAR
     </button>`;
     container.innerHTML = html;
   };
@@ -3781,6 +3786,7 @@ document.addEventListener('DOMContentLoaded', () => {
         copia.phy = copia.stats.phy ?? jug.phy;
       }
       if (typeof rec.grl === 'number') copia.grl = rec.grl;
+      copia.valor = calcularValor(copia.grl, null);
       return copia;
     } catch (e) {
       return jug;
