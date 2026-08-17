@@ -134,7 +134,12 @@
         completados: [],
         estado: 'menu',
         dialogoIndex: 0,
-        dialogoTipo: 'pre'
+        dialogoTipo: 'pre',
+        capActual: 0,
+        capCompletados: [],
+        escenaActual: null,
+        periodicoIndex: 0,
+        stats: { ego: 0, moral: 0, inspiracion: 0 }
       }
     },
     audio: {

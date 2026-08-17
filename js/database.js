@@ -394,50 +394,76 @@ const DIVISIONES = {
 const MODO_HISTORIA = [
   {
     id: "cap_1",
-    titulo: "Fase 1: Estrato 5 - La Primera Selección",
-    descripcion: "Toma el control del Equipo Z en el estrato más bajo de Blue Lock. Enfréntate a los equipos X, Y, W y V en una liga de supervivencia donde solo 2 equipos sobrevivirán a la eliminación total.",
-    partidos: [
+    numero: 1,
+    titulo: "SUEÑO",
+    periodico: [
+      "Copa Mundial de Fútbol del 2018",
+      "La selección japonesa cayó en octavos de final"
+    ],
+    descripcion: "El mundo del fútbol japonés se sacude con la eliminación de la selección en el Mundial de 2018. Un nuevo proyecto está a punto de cambiar el destino del país.",
+    escenas: [
       {
-        id: "historia_eq_x",
-        rival: "Equipo X (Líder: Shoei Barou)",
-        dialogoPre: [
-          { personaje: "Jinpachi Ego", texto: "Bienvenidos a la Primera Selección, inútiles. En este estrato todos sois el rango más bajo. Para sobrevivir debéis crear el fútbol desde el 0." },
-          { personaje: "Shoei Barou", texto: "Fuera de mi camino. En este campo, el rey soy yo." }
-        ],
-        dialogoPost: [
-          { personaje: "Jinpachi Ego", texto: "Perder o ganar sin entender tus armas no sirve de nada. Entended vuestro ego antes del próximo partido." }
-        ]
+        id: "dlg_1",
+        tipo: "dialogo",
+        personaje: {
+          sprite_url: "https://static.wikia.nocookie.net/bluelock/images/1/15/Anri_Teieri.png/revision/latest?cb=20230305185524&path-prefix=es"
+        },
+        caja_dialogo: { nombre_mostrado: "Anri Teieri", texto: "Vale..." },
+        siguiente_id: "dlg_2"
       },
       {
-        id: "historia_eq_y",
-        rival: "Equipo Y (Líder: Ikki Niko)",
-        dialogoPre: [
-          { personaje: "Ikki Niko", texto: "Nosotros no necesitamos destacar individualmente. Usaremos nuestro cerebro para aplastaros." }
-        ],
-        dialogoPost: [
-          { personaje: "Yoichi Isagi", texto: "¡Puedo ver el campo! ¡Veo dónde va a nacer la oportunidad!" }
-        ]
+        id: "dlg_2",
+        tipo: "dialogo",
+        personaje: {
+          sprite_url: "https://static.wikia.nocookie.net/bluelock/images/1/15/Anri_Teieri.png/revision/latest?cb=20230305185524&path-prefix=es"
+        },
+        caja_dialogo: { nombre_mostrado: "Anri Teieri", texto: "Una vez más, no cabe duda de que Japón se encuentra en un callejón sin salida en lo que respecta a nuestro rendimiento en la Copa del Mundo." },
+        siguiente_id: "dlg_3"
       },
       {
-        id: "historia_eq_w",
-        rival: "Equipo W (Hermanos Wanima)",
-        dialogoPre: [
-          { personaje: "Junichi Wanima", texto: "..." }
-        ],
-        dialogoPost: [
-          { personaje: "Meguru Bachira", texto: "El monstruo dentro de mí está empezando a divertirse." }
-        ]
+        id: "dlg_3",
+        tipo: "dialogo",
+        personaje: {
+          sprite_url: "https://static.wikia.nocookie.net/bluelock/images/1/15/Anri_Teieri.png/revision/latest?cb=20230305185524&path-prefix=es"
+        },
+        caja_dialogo: { nombre_mostrado: "Anri Teieri", texto: "A menos que queramos repetir esta situación la próxima vez, recomiendo que desarrollemos un plan..." },
+        siguiente_id: "dlg_4"
       },
       {
-        id: "historia_eq_v",
-        rival: "Equipo V (Nagi, Reo, Zantetsu)",
-        dialogoPre: [
-          { personaje: "Reo Mikage", texto: "Nagi y yo nunca hemos perdido. Esto será rápido." },
-          { personaje: "Seishiro Nagi", texto: "Qué palo jugar al fútbol... pero Reo dice que hay que ganar." }
-        ],
-        dialogoPost: [
-          { personaje: "Jinpachi Ego", texto: "Enhorabuena, Equipo Z. Habéis logrado transformar el 0 en 1. El verdadero fuego acaba de encenderse." }
-        ]
+        id: "dlg_4",
+        tipo: "dialogo",
+        personaje: {
+          sprite_url: "https://static.wikia.nocookie.net/bluelock/images/1/15/Anri_Teieri.png/revision/latest?cb=20230305185524&path-prefix=es"
+        },
+        caja_dialogo: { nombre_mostrado: "Anri Teieri", texto: "¿Qué opina usted, presidente?" },
+        siguiente_id: "dlg_5"
+      },
+      {
+        id: "dlg_5",
+        tipo: "dialogo",
+        personaje: {
+          sprite_url: "https://static.wikia.nocookie.net/bluelock/images/9/9e/Hirotoshi_Buratsuta.png/revision/latest?cb=20230305185303&path-prefix=es"
+        },
+        caja_dialogo: { nombre_mostrado: "Hirotoshi Buratsuta", texto: "¿Eh?" },
+        siguiente_id: "dlg_6"
+      },
+      {
+        id: "dlg_6",
+        tipo: "dialogo",
+        personaje: {
+          sprite_url: "https://static.wikia.nocookie.net/bluelock/images/9/9e/Hirotoshi_Buratsuta.png/revision/latest?cb=20230305185303&path-prefix=es"
+        },
+        caja_dialogo: { nombre_mostrado: "Hirotoshi Buratsuta", texto: "Pero si nuestras ganancias son buenas, ¿por qué deberíamos cambiar?" },
+        siguiente_id: "dlg_7"
+      },
+      {
+        id: "dlg_7",
+        tipo: "dialogo",
+        personaje: {
+          sprite_url: "https://static.wikia.nocookie.net/bluelock/images/9/9e/Hirotoshi_Buratsuta.png/revision/latest?cb=20230305185303&path-prefix=es"
+        },
+        caja_dialogo: { nombre_mostrado: "Hirotoshi Buratsuta", texto: "A fin de cuentas, el fútbol no es más que un negocio." },
+        fin: "continuara"
       }
     ]
   }

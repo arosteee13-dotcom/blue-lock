@@ -358,9 +358,14 @@
             <span>AJUSTES</span>
           </button>
         </div>
-        <button class="btn-bluelock btn-gold" id="hub-btn-jugar" style="width:100%; justify-content:center; margin-top:12px;" onclick="jugarProximoPartido()">
-          <i class="fas fa-fire"></i> AVANZAR AL DÍA DE PARTIDO
-        </button>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn-bluelock btn-gold" id="hub-btn-jugar" style="flex:1; justify-content:center;" onclick="jugarProximoPartido()">
+            <i class="fas fa-fire"></i> JUGAR
+          </button>
+          <button class="btn-bluelock" id="hub-btn-simular" style="flex:1; justify-content:center;" onclick="jugarProximoPartidoRapido()">
+            <i class="fas fa-forward-fast"></i> SIMULAR
+          </button>
+        </div>
       </div>
     </section>
 

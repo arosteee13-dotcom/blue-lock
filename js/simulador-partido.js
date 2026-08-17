@@ -75,6 +75,9 @@
     var eqManager = (typeof NEO_EQUIPOS !== 'undefined') ? NEO_EQUIPOS.find(function (e) { return e.name === data.manager.equipo; }) : null;
     if (!eqManager) return;
 
+    // Guardar calendarios generados para que simularJornadaGeneral los encuentre
+    BL.core.guardarPartida(data);
+
     var calendario = temporada.calendario[ligaKey];
     if (!calendario || temporada.jornadaActual >= calendario.length) {
       window.mostrarModal('TEMPORADA COMPLETA', '¡Has completado todas las jornadas de la liga! La temporada ha terminado.');
@@ -119,9 +122,10 @@
     if (btnTactica) btnTactica.style.display = 'none';
 
     // Simular todos los partidos IA de la jornada (excepto el del jugador)
-    if (typeof window.simularJornadaGeneral === 'function') {
-      window.simularJornadaGeneral(temporada.jornadaActual);
-    }
+    var resultadosFondo = (typeof window.simularJornadaGeneral === 'function')
+      ? window.simularJornadaGeneral(temporada.jornadaActual)
+      : [];
+    S.resultadosFondo = resultadosFondo;
 
     convocatoria();
     window.showScreen('screen-partido');
@@ -479,6 +483,7 @@
   function finalizarSimulador() {
     clearInterval(S.reloj);
     cancelAnimationFrame(S.precisionRAF);
+    window.partidoRapido = false;
     S.minuto = 90;
     setMinuto(90);
 
@@ -518,7 +523,7 @@
     temporada.partidosJugados.push({
       jornada: temporada.jornadaActual + 1,
       local: S.partidoUsuario[0], visit: S.partidoUsuario[1],
-      gl: S.golesLocal, gv: S.golesVisit, fondo: []
+      gl: S.golesLocal, gv: S.golesVisit, fondo: S.resultadosFondo || []
     });
     temporada.jornadaActual += 1;
     fresh.manager.semana = (fresh.manager.semana || 0) + 1;

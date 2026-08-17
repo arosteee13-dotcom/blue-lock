@@ -304,6 +304,88 @@ document.addEventListener('DOMContentLoaded', () => {
     return (t && Array.isArray(t.once)) ? t.once : [];
   }
 
+  function autoSustitucion() {
+    try {
+      const saved = BL.core.leerGuardado();
+      if (!saved) return;
+      const data = JSON.parse(saved);
+      if (data.tipo !== 'manager' || !data.manager || !data.manager.tactica) return;
+      const tactica = data.manager.tactica;
+      const once = tactica.once || [];
+      const banca = tactica.banca || [];
+      if (!once.length || !banca.length) return;
+
+      const equipo = data.manager.equipo;
+      const staminaData = data.manager.estamina || {};
+
+      const estaminasOnce = once.map(id => ({
+        id,
+        estamina: staminaData[id] ?? 100
+      }));
+
+      const menorEstamina = Math.min(...estaminasOnce.map(e => e.estamina));
+
+      const candidatosSalida = estaminasOnce.filter(e => e.estamina <= 70 || e.estamina === menorEstamina);
+      if (!candidatosSalida.length) return;
+
+      candidatosSalida.sort((a, b) => a.estamina - b.estamina);
+
+      const usados = new Set();
+      let huboCambio = false;
+
+      candidatosSalida.forEach(function (cand) {
+        if (usados.has(cand.id)) return;
+        const jugSale = getJugador(cand.id, equipo);
+        if (!jugSale) return;
+        const posSale = jugSale.posicion;
+
+        let mejorIdx = -1;
+        let mejorPuntaje = -1;
+        banca.forEach(function (bId, idx) {
+          if (usados.has(bId)) return;
+          if (once.indexOf(bId) !== -1) return;
+          const jugEntra = getJugador(bId, equipo);
+          if (!jugEntra) return;
+          const estEntra = staminaData[bId] ?? 100;
+          if (estEntra < 40) return;
+
+          let puntaje = calcularGrlJugador(jugEntra);
+          if (jugEntra.posicion === posSale) puntaje += 20;
+          if (estEntra > 60) puntaje += 10;
+
+          if (puntaje > mejorPuntaje) {
+            mejorPuntaje = puntaje;
+            mejorIdx = idx;
+          }
+        });
+
+        if (mejorIdx === -1) return;
+
+        const entraId = banca[mejorIdx];
+        const saleIdx = once.indexOf(cand.id);
+        if (saleIdx === -1) return;
+
+        once[saleIdx] = entraId;
+        banca[mejorIdx] = cand.id;
+        usados.add(cand.id);
+        huboCambio = true;
+
+        const jugEntra = getJugador(entraId, equipo);
+        const nombreSale = jugSale?.nombre || cand.id;
+        const nombreEntra = jugEntra?.nombre || entraId;
+        escribirLogPartido(`🔄 SUSTITUCIÓN (${partidoMinuto}'): Sale ${nombreSale} (${cand.estamina} est.) · Entra ${nombreEntra}`, 'sustitucion');
+      });
+
+      if (huboCambio) {
+        tactica.once = once;
+        tactica.banca = banca;
+        BL.core.guardarPartida(JSON.stringify(data));
+      }
+    } catch (e) {
+      console.error('Error en autoSustitucion:', e);
+    }
+  }
+
   function recuperarJugadores(data, jugadosIds, descansoIds) {
     [jugadosIds, descansoIds].forEach((arr, i) => {
       (arr || []).forEach(id => {
@@ -3237,7 +3319,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return `<tr>
         <td>${i + 1}.</td>
         <td class="clasificacion-equipo">
-          <div class="lider-avatar"><img src="${foto}" onerror="this.onerror=null;this.style.display='none';" alt=""><i class="fas fa-user"></i></div>
+          <div class="lider-avatar"><img src="${foto}" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='';" alt=""><i class="fas fa-user" style="display:none"></i></div>
           <span>${j.nombre}<span class="lider-meta"> ${j.posicion} · ${j.equipo || ''}</span></span>
         </td>
         <td class="lider-valor">${r[campo] || 0}${extra}</td>
@@ -3292,6 +3374,18 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderClasificacionLiga() {
     const pais = CONFIG_PAISES.find(p => p.id === clasificacionLigaEstado.paisId);
     if (!pais) return;
+
+    // Cargar datos actualizados para que tablaLigaHtml tenga la clasificación
+    try {
+      const saved = BL.core.leerGuardado();
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d.tipo === 'manager' && d.manager && d.manager.temporada) {
+          gameState.estadoTemporada = d.manager.temporada;
+        }
+      }
+    } catch (e) { /* noop */ }
+
     document.getElementById('clasificacion-liga-titulo').textContent = `${pais.bandera} ${pais.nombre}`;
     document.getElementById('clasificacion-liga-sub').textContent = `${pais.ligas.length} ${pais.ligas.length === 1 ? 'liga' : 'ligas'}`;
 
@@ -3333,7 +3427,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `
       <div class="clas-lideres">
         ${tablaLideresHtml(goleadores, '⚽ MÁXIMO GOLEADOR DE LA LIGA', 'goles', 'GOLES', true)}
-        ${tablaLideresHtml(asistentes, '🎯 MÁXIMO ASISTENTE DE LA LIGA', 'asistencias', 'ASIST', true)}
+        ${asistentes.length > 0 ? tablaLideresHtml(asistentes, '🎯 MÁXIMO ASISTENTE DE LA LIGA', 'asistencias', 'ASIST', true) : ''}
       </div>`;
   }
 
@@ -4841,6 +4935,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let partidoGolesLocal = 0;
   let partidoGolesVisit = 0;
   let partidoCtx = null;
+  let ultimaJugadaGanador = null;
+  window.partidoRapido = false;
 
   function partidoJugadoresDelOnce(equipoNombre) {
     try {
@@ -5017,6 +5113,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function finalizarPartido() {
     detenerRelojPartido();
     ocultarBotonTactica();
+    window.partidoRapido = false;
+    ultimaJugadaGanador = null;
     const ctx = partidoCtx;
     if (!ctx) return;
     const { data, temporada, partidoUsuario, resultadosFondo, eqManager } = ctx;
@@ -5293,8 +5391,12 @@ document.addEventListener('DOMContentLoaded', () => {
     detenerRelojPartido();
     if (!partidoCtx) return;
     partidoEstado = 'flujo';
-    mostrarBotonTactica();
-    partidoCronometro = setInterval(avanzarRelojPartido, 1300);
+    if (!partidoRapido) {
+      mostrarBotonTactica();
+    } else {
+      ocultarBotonTactica();
+    }
+    partidoCronometro = setInterval(avanzarRelojPartido, partidoRapido ? 400 : 1300);
   }
 
   window.abrirTacticaEnVivo = function () {
@@ -5343,7 +5445,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function avanzarRelojPartido() {
     if (partidoEstado !== 'flujo' || !partidoCtx) return;
-    const salto = 1 + Math.floor(Math.random() * 2);
+    const salto = partidoRapido
+      ? 2 + Math.floor(Math.random() * 3)
+      : 1 + Math.floor(Math.random() * 2);
     partidoMinuto = Math.min(90, partidoMinuto + salto);
     const minEl = document.getElementById('partido-minuto');
     if (minEl) {
@@ -5358,6 +5462,11 @@ document.addEventListener('DOMContentLoaded', () => {
       finalizarPartido();
       return;
     }
+
+    if (partidoRapido && partidoMinuto % 15 === 0) {
+      autoSustitucion();
+    }
+
     if (Math.random() < 0.33) {
       escribirLogPartido(`${partidoMinuto}' · ${fraseAmbientePartido()}`, 'quiet');
     }
@@ -5415,6 +5524,14 @@ document.addEventListener('DOMContentLoaded', () => {
       resolverEventoQuieto();
     } else if (tipo === 'disparoRival') {
       resolverDisparoRival();
+    } else if (partidoRapido) {
+      if (tipo === 'disparo') {
+        resolverDisparo(false);
+      } else {
+        const opciones = ev.opciones || ['DEF', 'PHY'];
+        const mejorStat = mejorRespuestaIA(ev.miJug, opciones);
+        resolverOpcion(mejorStat, false);
+      }
     } else {
       mostrarEventoActual();
     }
@@ -5590,10 +5707,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (esLocal) partidoGolesLocal++; else partidoGolesVisit++;
       texto = `¡${delantero?.nombre || 'El delantero'} DISPARA... ¡GOOOL! (${partidoMinuto}')`;
       clase = 'gol';
+      if (ultimaJugadaGanador && ultimaJugadaGanador.esLocal === esLocal && ultimaJugadaGanador.id !== delantero?.id) {
+        sumarRendimiento(ultimaJugadaGanador.id, { asistencias: 1 });
+      }
+      ultimaJugadaGanador = null;
       reproducirSFX('gol');
     } else {
       texto = res.mensaje;
       clase = 'parada';
+      ultimaJugadaGanador = null;
     }
     pintarMarcador();
     partidoCtx.ultimaJugadaArmaUsuario = !!esArma;
@@ -5690,6 +5812,10 @@ document.addEventListener('DOMContentLoaded', () => {
           clase = 'gol';
           if (esLocal) partidoGolesLocal++; else partidoGolesVisit++;
           if (atac?.id) sumarRendimiento(atac.id, { goles: 1, partidosJugados: 1 });
+          if (ultimaJugadaGanador && ultimaJugadaGanador.esLocal === esLocal && ultimaJugadaGanador.id !== atac?.id) {
+            sumarRendimiento(ultimaJugadaGanador.id, { asistencias: 1 });
+          }
+          ultimaJugadaGanador = null;
           reproducirSFX('gol');
         } else if (res.desenlace === 'falta') {
           texto = `¡FALTA! ${defNom} derriba a ${atacNom} con su carga (${fmtDuelo(res, false)})${armaMsg}`;
@@ -5697,9 +5823,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (res.gana) {
           texto = `${atacNom} gana la jugada con ${statAt} pero no logra concretar (${fmtDuelo(res, false)})${armaMsg}`;
           clase = res.armaAt ? 'arma' : '';
+          ultimaJugadaGanador = { id: atac?.id, esLocal: esLocal };
         } else {
           texto = `${defNom} recupera el balón frente a ${atacNom} (${fmtDuelo(res, false)})${armaMsg}`;
           clase = 'parada';
+          ultimaJugadaGanador = { id: def?.id, esLocal: !esLocal };
         }
       } else {
         if (res.desenlace === 'gol') {
@@ -5707,6 +5835,10 @@ document.addEventListener('DOMContentLoaded', () => {
           clase = 'gol';
           if (esLocal) partidoGolesVisit++; else partidoGolesLocal++;
           if (atac?.id) sumarRendimiento(atac.id, { goles: 1, partidosJugados: 1 });
+          if (ultimaJugadaGanador && ultimaJugadaGanador.esLocal !== esLocal && ultimaJugadaGanador.id !== atac?.id) {
+            sumarRendimiento(ultimaJugadaGanador.id, { asistencias: 1 });
+          }
+          ultimaJugadaGanador = null;
           reproducirSFX('gol');
         } else if (res.desenlace === 'falta') {
           texto = `¡FALTA! ${defNom} corta la jugada de ${atacNom} con falta (${fmtDuelo(res, true)})${armaMsg}`;
@@ -5714,9 +5846,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (res.gana) {
           texto = `${atacNom} gana la jugada con ${statAt} pero ${defNom} evita el gol (${fmtDuelo(res, true)})${armaMsg}`;
           clase = res.armaDef ? 'arma' : '';
+          ultimaJugadaGanador = { id: atac?.id, esLocal: !esLocal };
         } else {
           texto = `${defNom} recupera ante ${atacNom} (${fmtDuelo(res, true)})${armaMsg}`;
           clase = res.armaDef ? 'arma' : 'parada';
+          ultimaJugadaGanador = { id: def?.id, esLocal: esLocal };
         }
       }
 
@@ -5836,6 +5970,22 @@ document.addEventListener('DOMContentLoaded', () => {
       mostrarModal('MODO JUGADOR', 'La simulación de partidos está disponible solo en el Modo Carrera (Manager).');
       return;
     }
+    if (data.manager.egoistaCreado && typeof window.iniciarSimuladorJugador === 'function') {
+      window.iniciarSimuladorJugador();
+    } else {
+      iniciarJornada();
+    }
+  };
+
+  window.jugarProximoPartidoRapido = function () {
+    const saved = BL.core.leerGuardado();
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    if (data.tipo !== 'manager' || !data.manager) {
+      mostrarModal('MODO JUGADOR', 'La simulación de partidos está disponible solo en el Modo Carrera (Manager).');
+      return;
+    }
+    partidoRapido = true;
     if (data.manager.egoistaCreado && typeof window.iniciarSimuladorJugador === 'function') {
       window.iniciarSimuladorJugador();
     } else {

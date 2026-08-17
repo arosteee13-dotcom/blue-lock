@@ -4230,6 +4230,239 @@ header {
   padding: 12px 24px;
 }
 
+/* ===== MODO HISTORIA: CAPÍTULOS Y ESCENAS ===== */
+.historia-banda {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 2px 8px;
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--blue-lock-cyan);
+  background: rgba(0, 243, 255, 0.08);
+  border: 1px solid var(--blue-lock-cyan);
+  border-radius: 6px;
+  box-shadow: 0 0 12px var(--blue-lock-glow);
+}
+
+.btn-back-caps {
+  width: auto;
+  align-self: center;
+  margin-top: 12px;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.escena-decision,
+.escena-partido {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 16px 0;
+}
+
+.escena-texto {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-main);
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-left: 3px solid var(--blue-lock-cyan);
+  border-radius: 10px;
+  padding: 18px;
+  width: 100%;
+  margin: 0;
+}
+
+.decision-opciones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.decision-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.decision-option i {
+  color: var(--blue-lock-cyan);
+  transition: transform 0.2s ease;
+}
+
+.decision-option:hover {
+  border-color: var(--blue-lock-cyan);
+  box-shadow: 0 0 14px var(--blue-lock-glow);
+  transform: translateX(4px);
+}
+
+.decision-option:hover i {
+  transform: translateX(3px);
+}
+
+.escena-partido-rival {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--blue-lock-cyan);
+}
+
+/* Intro de texto con fade (intros de capítulo) */
+.periodico-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.periodico-simple {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.periodico-linea {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: opacity 0.4s ease;
+  opacity: 1;
+}
+
+.periodico-linea.fade-in {
+  opacity: 0;
+}
+
+.periodico-linea.fade-out {
+  opacity: 0;
+}
+
+.periodico-continuar {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  align-self: stretch;
+  justify-content: center;
+  margin-top: 14px;
+  z-index: 10;
+}
+
+/* Pantalla "CONTINUARÁ" */
+.continuara-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  gap: 12px;
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.continuara-titulo {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: var(--blue-lock-cyan);
+  text-shadow: 0 0 16px var(--blue-lock-glow);
+  margin: 0;
+}
+
+.continuara-texto {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Escena de diálogo cerrada (manga + azul neón) */
+.escena-dialogo-cerrada {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 60vh;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.sprite-personaje {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  flex: 1;
+  min-height: 0;
+  padding: 0 12px;
+}
+
+.sprite-personaje img {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 20%;
+  border: 3px solid var(--blue-lock-cyan);
+  box-shadow: 0 0 18px var(--blue-lock-glow);
+  background: rgba(0, 243, 255, 0.08);
+  filter: grayscale(1) contrast(1.15);
+}
+
+.caja-dialogo-cerrada {
+  position: relative;
+  z-index: 2;
+  margin-top: 10px;
+  background: rgba(8, 14, 28, 0.92);
+  border: 1px solid rgba(0, 243, 255, 0.35);
+  border-left: 4px solid var(--blue-lock-cyan);
+  border-radius: 8px;
+  box-shadow: 0 0 18px var(--blue-lock-glow);
+  padding: 14px 16px;
+}
+
+.caja-nombre {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--blue-lock-cyan);
+  text-shadow: 0 0 8px var(--blue-lock-glow);
+  margin-bottom: 6px;
+}
+
+.caja-texto {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
 /* Tactica Formation Selector */
 .tactica-formacion-row {
   display: flex;
